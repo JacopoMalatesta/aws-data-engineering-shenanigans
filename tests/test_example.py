@@ -13,3 +13,6 @@ def template():
 
 def test_no_buckets_found(template):
   template.resource_count_is("AWS::S3::Bucket", 0)
+
+def test_sample_queue_exists(template):
+  template.resource_count_is("AWS::SQS::Queue", 1)

@@ -84,4 +84,7 @@ cython_debug/
 !/cdk.json
 /cdk.out/
 .cdk.staging/
+.opencode/
+!/.github/workflows/build.yml
+!/.github/workflows/deploy.yml
 !/.projenrc.py
