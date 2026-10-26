@@ -37,6 +37,7 @@ build.add_job(
             JobStep(uses="actions/checkout@v4"),
             JobStep(uses="astral-sh/setup-uv@v5", with_={"python-version": "3.13"}),
             JobStep(uses="actions/setup-node@v4", with_={"node-version": "22"}),
+            JobStep(name="Install CDK CLI", run="npm install -g aws-cdk@2.1146.1"),
             JobStep(name="Install dependencies", run="uv sync --frozen"),
             JobStep(name="Build, synth and test", run="npx projen@0.104.17 build"),
         ],
@@ -69,6 +70,7 @@ deploy.add_job(
             JobStep(uses="actions/checkout@v4"),
             JobStep(uses="astral-sh/setup-uv@v5", with_={"python-version": "3.13"}),
             JobStep(uses="actions/setup-node@v4", with_={"node-version": "22"}),
+            JobStep(name="Install CDK CLI", run="npm install -g aws-cdk@2.1146.1"),
             JobStep(name="Install dependencies", run="uv sync --frozen"),
             JobStep(name="Export constants from constants.py", run=EXPORT_CONSTANTS),
             JobStep(

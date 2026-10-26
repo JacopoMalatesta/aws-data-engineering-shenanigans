@@ -19,6 +19,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install CDK CLI
+        id: install_cdk_cli
+        run: npm install -g aws-cdk@2.1146.1
       - name: Install dependencies
         id: install_dependencies
         run: uv sync --frozen
