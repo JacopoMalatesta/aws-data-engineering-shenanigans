@@ -140,6 +140,24 @@
         }
       ]
     },
+    "format": {
+      "name": "format",
+      "description": "Format code with ruff",
+      "steps": [
+        {
+          "exec": "ruff format ."
+        }
+      ]
+    },
+    "format:check": {
+      "name": "format:check",
+      "description": "Verify ruff formatting",
+      "steps": [
+        {
+          "exec": "ruff format --check ."
+        }
+      ]
+    },
     "install": {
       "name": "install",
       "description": "Install dependencies and update lockfile",
@@ -167,6 +185,24 @@
             "uv",
             "sync"
           ]
+        }
+      ]
+    },
+    "lint": {
+      "name": "lint",
+      "description": "Lint with ruff",
+      "steps": [
+        {
+          "exec": "ruff check ."
+        }
+      ]
+    },
+    "lint:fix": {
+      "name": "lint:fix",
+      "description": "Autofix ruff violations (safe fixes only)",
+      "steps": [
+        {
+          "exec": "ruff check --fix ."
         }
       ]
     },
@@ -254,6 +290,24 @@
           "execArgs": [
             "pytest"
           ]
+        },
+        {
+          "spawn": "lint"
+        },
+        {
+          "spawn": "format:check"
+        },
+        {
+          "spawn": "typecheck"
+        }
+      ]
+    },
+    "typecheck": {
+      "name": "typecheck",
+      "description": "Type check with ty",
+      "steps": [
+        {
+          "exec": "ty check ."
         }
       ]
     },

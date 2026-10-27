@@ -85,6 +85,8 @@ cython_debug/
 /cdk.out/
 .cdk.staging/
 .opencode/
+!/.vscode/extensions.json
+!/.vscode/settings.json
 !/.github/workflows/build.yml
 !/.github/workflows/deploy.yml
 !/.projenrc.py

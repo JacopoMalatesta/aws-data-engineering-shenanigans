@@ -29,6 +29,18 @@ jobs:
       - name: Install dependencies
         id: install_dependencies
         run: uv sync --frozen
+      - name: Lint
+        id: lint
+        run: npx projen@0.104.17 lint
+      - name: Format check
+        id: format_check
+        run: npx projen@0.104.17 format:check
+      - name: Type check
+        id: type_check
+        run: npx projen@0.104.17 typecheck
+      - name: Unit tests
+        id: unit_tests
+        run: npx projen@0.104.17 test
       - name: Export constants from constants.py
         id: export_constants_from_constants_py
         run: |-

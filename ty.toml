@@ -1,0 +1,22 @@
+# ty configuration - hand-authored (projen has no ty component).
+# Reference: https://docs.astral.sh/ty/reference/configuration/
+#
+# This is Astral's documented "even stricter" recipe
+# (https://docs.astral.sh/ty/coming-from-mypy-or-pyright/):
+# stricter than mypy/pyright --strict. The known-false-positive trio
+# (division-by-zero, possibly-missing-attribute, possibly-missing-import)
+# is deliberately NOT enabled.
+
+[rules]
+blanket-ignore-comment = "error"
+dynamic-function-decorator-return = "error"
+missing-type-argument = "error"
+possibly-unresolved-reference = "warn"
+unsound-assignment = "error"
+unsound-return-statement = "error"
+unsound-yield = "error"
+unsupported-dynamic-base = "warn"
+
+[analysis]
+strict-equality-semantics = true
+strict-generic-narrowing = true

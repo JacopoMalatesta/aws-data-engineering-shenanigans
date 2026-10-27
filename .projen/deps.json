@@ -6,6 +6,16 @@
       "type": "devenv"
     },
     {
+      "name": "ruff",
+      "version": "0.17.2",
+      "type": "devenv"
+    },
+    {
+      "name": "ty",
+      "version": "0.0.92",
+      "type": "devenv"
+    },
+    {
       "name": "aws-cdk-lib",
       "version": "^2.275.0",
       "type": "runtime"
