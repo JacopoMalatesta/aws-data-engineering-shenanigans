@@ -27,7 +27,7 @@ jobs:
         run: uv sync --frozen
       - name: Regenerate projen files
         id: regenerate_projen_files
-        run: npx projen@0.104.17 --no-post
+        run: npx projen@0.104.17 --no-post --debug
       - name: Lint
         id: lint
         run: npx projen@0.104.17 lint
@@ -40,8 +40,8 @@ jobs:
       - name: Unit tests
         id: unit_tests
         run: npx projen@0.104.17 test
-      - name: Synth
-        id: synth
+      - name: CDK synth
+        id: cdk_synth
         run: npx projen@0.104.17 synth
       - name: Package
         id: package

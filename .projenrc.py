@@ -232,7 +232,7 @@ build.add_job(
             *SETUP_STEPS,
             JobStep(
                 name="Regenerate projen files",
-                run=f"{PROJEN_RUN} --no-post",
+                run=f"{PROJEN_RUN} --no-post --debug",
             ),
             *CHECK_STEPS,
             JobStep(
@@ -240,7 +240,7 @@ build.add_job(
                 run=f"{PROJEN_RUN} {project.test_task.name}",
             ),
             JobStep(
-                name="Synth",
+                name="CDK synth",
                 run=f"{PROJEN_RUN} {_get_task_by_name('synth').name}",
             ),
             JobStep(
