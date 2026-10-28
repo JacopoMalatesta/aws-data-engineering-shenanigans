@@ -256,7 +256,7 @@ DIFF_BODY_FILE=cdk-diff-comment.md
     echo '✅ No infrastructure changes.'
   fi
 } > "$DIFF_BODY_FILE"
-gh pr comment --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
+gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
 """,
     ),
 ]
