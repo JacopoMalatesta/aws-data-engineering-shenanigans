@@ -12,7 +12,6 @@ from projen.github import GitHubOptions, PullRequestLintOptions, SemanticTitleOp
 from projen.github.workflows import Job, JobPermission, JobStep
 from projen.vscode import VsCode
 
-# Shared with both uv_options and the CI setup-uv step in SETUP_STEPS.
 PYTHON_VERSION: Final = "3.13"
 
 project = AwsCdkPythonApp(
@@ -90,9 +89,6 @@ typecheck = project.add_task(
     exec="ty check --error-on-warning .",
 )
 
-# One-command entry point for static checks (local use; CI runs each
-# check as a separate workflow step instead). Intentionally static-only:
-# pytest runs via the `test` task, locally and in CI.
 check = project.add_task(
     "check",
     description="Run all static checks: lint, format check, type check",
@@ -159,12 +155,6 @@ YamlFile(
 # Install the git hooks as part of dependency setup: a fresh clone only
 # needs `npx projen install` (uv sync provides the pre-commit binary,
 # and this step writes .git/hooks/pre-commit).
-#
-# Task lookup helper: `tasks.try_find` returns `Task | None`; several
-# callers below need a hard guarantee, so the narrowing lives here
-# instead of being repeated (ty flags `.name` on a possible None).
-# Naming pairs with projen's own convention: plain getters raise on
-# failure, `try_find` may return None.
 
 
 def _get_task_by_name(name: str) -> Task:
@@ -207,18 +197,6 @@ vscode.settings.add_settings(
     },
 )
 
-# ------------------------------------------------------------------
-# GitHub Actions
-# Both workflows share their environment setup and their static check
-# steps via the constants below, so no step is defined twice. Values
-# that appear more than once are module-level constants (PROJEN_RUN,
-# PYTHON_VERSION); single-use values stay inline in SETUP_STEPS.
-# `projen build` is deliberately NOT used in CI: its aggregated phase
-# chain (synth, test, packaging) conflicts with the granular-steps
-# preference, so CI runs the individual tasks instead. The
-# "Regenerate projen files" step reproduces the regeneration that the
-# old `projen build` step performed via its default (first) phase.
-# ------------------------------------------------------------------
 PROJEN_RUN: Final = "npx projen@0.104.17"
 
 github = project.github
@@ -234,8 +212,6 @@ SETUP_STEPS: Final = [
     JobStep(name="Install dependencies", run="uv sync --frozen"),
 ]
 
-# Task-name derivation requires this list to be defined after the
-# lint/format:check/typecheck task objects exist (see checks section).
 CHECK_STEPS: Final = [
     JobStep(name="Lint", run=f"{PROJEN_RUN} {lint.name}"),
     JobStep(name="Format check", run=f"{PROJEN_RUN} {format_check.name}"),
@@ -254,7 +230,11 @@ build.add_job(
         permissions={"contents": JobPermission.READ},
         steps=[
             *SETUP_STEPS,
-            JobStep(name="Regenerate projen files", run=PROJEN_RUN),
+            JobStep(
+                name="Regenerate projen files",
+                run=PROJEN_RUN,
+                env={"PROJEN_DISABLE_POST": "true"},
+            ),
             *CHECK_STEPS,
             JobStep(
                 name="Unit tests",

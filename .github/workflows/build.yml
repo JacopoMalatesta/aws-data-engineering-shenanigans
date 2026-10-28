@@ -27,6 +27,8 @@ jobs:
         run: uv sync --frozen
       - name: Regenerate projen files
         id: regenerate_projen_files
+        env:
+          PROJEN_DISABLE_POST: "true"
         run: npx projen@0.104.17
       - name: Lint
         id: lint
