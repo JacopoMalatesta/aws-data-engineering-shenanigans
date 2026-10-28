@@ -231,18 +231,12 @@ AWS_AUTH_STEPS: Final = [
         },
     ),
 ]
+# Raw cdk diff output is posted verbatim to the PR conversation as a
+# single sticky bot comment: `gh pr comment --edit-last
+# --create-if-none` refreshes it on every push, and reports no changes
+# explicitly since an empty diff yields an empty `cdk-diff.txt`.
 
-CDK_DIFF_STEPS: Final = [
-    JobStep(
-        name="CDK diff",
-        run=f"{PROJEN_RUN} {_get_task_by_name('diff').name} > cdk-diff.txt || true",
-    ),
-    JobStep(
-        name="Post CDK diff to PR",
-        env={
-            "GH_TOKEN": "${{ github.token }}",
-        },
-        run="""\
+POST_CDK_DIFF: Final = """\
 DIFF_BODY_FILE=cdk-diff-comment.md
 {
   echo '<!-- cdk-diff -->'
@@ -256,9 +250,7 @@ DIFF_BODY_FILE=cdk-diff-comment.md
   fi
 } > "$DIFF_BODY_FILE"
 gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
-""",
-    ),
-]
+"""
 
 # ------------------------------------------------------------------
 # GitHub Actions: build + synth + tests on every pull request
@@ -294,7 +286,17 @@ build.add_job(
                 name="CDK synth",
                 run=f"{PROJEN_RUN} {_get_task_by_name('synth').name}",
             ),
-            *CDK_DIFF_STEPS,
+            JobStep(
+                name="CDK diff",
+                run=f"{PROJEN_RUN} {_get_task_by_name('diff').name} > cdk-diff.txt || true",
+            ),
+            JobStep(
+                name="Post CDK diff to PR",
+                env={
+                    "GH_TOKEN": "${{ github.token }}",
+                },
+                run=POST_CDK_DIFF,
+            ),
             JobStep(
                 name="Package",
                 run=f"{PROJEN_RUN} {_get_task_by_name('package').name}",
