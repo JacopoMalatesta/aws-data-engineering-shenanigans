@@ -6,6 +6,7 @@
 /.github/workflows/deploy.yml linguist-generated
 /.github/workflows/pull-request-lint.yml linguist-generated
 /.gitignore linguist-generated
+/.pre-commit-config.yaml linguist-generated
 /.projen/** linguist-generated
 /.projen/deps.json linguist-generated
 /.projen/files.json linguist-generated

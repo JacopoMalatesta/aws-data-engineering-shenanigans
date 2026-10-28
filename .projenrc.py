@@ -4,6 +4,7 @@ Edit this file, then re-run it (``npx projen``) to regenerate every
 projen-managed file. Never hand-edit those; they are read-only.
 """
 
+from projen import YamlFile
 from projen.awscdk import AwsCdkPythonApp
 from projen.github.workflows import Job, JobPermission, JobStep
 from projen.vscode import VsCode
@@ -12,9 +13,10 @@ project = AwsCdkPythonApp(
     author_email="jacopomalatesta95@gmail.com",
     author_name="JacopoMalatesta",
     cdk_version="2.275.0",
-    # Exact pins: ty is pre-1.0 (unstable API) and ruff's rule set
-    # evolves, so both are pinned rather than ranged.
-    dev_deps=["ruff@0.17.2", "ty@0.0.92"],
+    # Exact pins: ty is pre-1.0 (unstable API), ruff's rule set evolves,
+    # and the pre-commit hooks below must resolve to the same versions
+    # CI uses, so all three are pinned rather than ranged.
+    dev_deps=["pre-commit@4.6.2", "ruff@0.17.2", "ty@0.0.92"],
     module_name="aws_data_engineering_shenanigans",
     name="aws-data-engineering-shenanigans",
     uv=True,
@@ -32,6 +34,9 @@ project = AwsCdkPythonApp(
 
 # Local OpenCode helper scripts are not part of the repo.
 project.add_git_ignore(".opencode/")
+
+# vim swap files are transient editor state, never repo content.
+project.add_git_ignore("*.swp")
 
 # ------------------------------------------------------------------
 # Linting, formatting and type checking (ruff + ty).
@@ -62,6 +67,70 @@ typecheck = project.add_task(
     description="Type check with ty",
     exec="ty check --error-on-warning .",
 )
+
+# ------------------------------------------------------------------
+# Local git hooks (pre-commit). The config file is projen-generated and
+# mirrors the CI checks:
+#   - ruff lint+autofix and ruff format run on the staged .py files
+#     (fix, then fail once: pre-commit blocks that first commit, and the
+#     fixers leave their edits in the working tree to be re-staged);
+#   - ty analyses the whole repository (whole-program analysis, so it
+#     cannot be scoped to staged files) and runs only when a .py file
+#     is staged.
+# Hooks invoke the ruff/ty binaries that `uv sync` materializes in
+# .venv from uv.lock (still the single source of truth for tool
+# versions). Repo-relative entry paths keep them independent of the
+# shell's PATH: pre-commit resolves entries containing `/` against the
+# repo root. `language: unsupported` (pre-commit >= 4.4, formerly
+# `system`) means pre-commit installs no isolated environment.
+# ------------------------------------------------------------------
+YamlFile(
+    project,
+    ".pre-commit-config.yaml",
+    obj={
+        "repos": [
+            {
+                "repo": "local",
+                "hooks": [
+                    {
+                        "id": "ruff-lint-fix",
+                        "name": "ruff check --fix",
+                        "entry": "./.venv/bin/ruff",
+                        "args": ["check", "--fix"],
+                        "language": "unsupported",
+                        "types_or": ["python", "pyi"],
+                    },
+                    {
+                        "id": "ruff-format",
+                        "name": "ruff format",
+                        "entry": "./.venv/bin/ruff",
+                        "args": ["format"],
+                        "language": "unsupported",
+                        "types_or": ["python", "pyi"],
+                    },
+                    {
+                        "id": "ty-check",
+                        "name": "ty check",
+                        "entry": "./.venv/bin/ty",
+                        "args": ["check", "--error-on-warning", "."],
+                        "language": "unsupported",
+                        "pass_filenames": False,
+                        "files": r"\.py$",
+                    },
+                ],
+            },
+        ],
+    },
+)
+
+# Install the git hooks as part of dependency setup: a fresh clone only
+# needs `npx projen install` (uv sync provides the pre-commit binary,
+# and this step writes .git/hooks/pre-commit).
+install_task = project.tasks.try_find("install")
+if install_task is None:
+    msg = "no install task to extend with pre-commit install"
+    raise RuntimeError(msg)
+install_task.exec("pre-commit install")
 
 # Gate the build: projen locks the "build" task after construction
 # ("do not allow additional build phases"), so the checks are spawned
