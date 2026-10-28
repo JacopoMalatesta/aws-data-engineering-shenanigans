@@ -14,6 +14,9 @@ from projen.vscode import VsCode
 
 PYTHON_VERSION: Final = "3.13"
 PROJEN_RUN: Final = "npx projen@0.104.17"
+EXPORT_CONSTANTS: Final = """echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
+echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
+"""
 
 project = AwsCdkPythonApp(
     author_email="jacopomalatesta95@gmail.com",
@@ -217,6 +220,38 @@ CHECK_STEPS: Final = [
     JobStep(name="Type check", run=f"{PROJEN_RUN} {typecheck.name}"),
 ]
 
+AWS_AUTH_STEPS: Final = [
+    JobStep(name="Export constants from constants.py", run=EXPORT_CONSTANTS),
+    JobStep(
+        name="Configure AWS credentials via OIDC",
+        uses="aws-actions/configure-aws-credentials@v4",
+        with_={
+            "role-to-assume": "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy",
+            "aws-region": "${{ env.AWS_REGION }}",
+        },
+    ),
+]
+# Raw cdk diff output is posted verbatim to the PR conversation as a
+# single sticky bot comment: `gh pr comment --edit-last
+# --create-if-none` refreshes it on every push, and reports no changes
+# explicitly since an empty diff yields an empty `cdk-diff.txt`.
+
+POST_CDK_DIFF: Final = """\
+DIFF_BODY_FILE=cdk-diff-comment.md
+{
+  echo '<!-- cdk-diff -->'
+  echo '## 📋 cdk diff'
+  if [ -s cdk-diff.txt ]; then
+    echo '```text'
+    cat cdk-diff.txt
+    echo '```'
+  else
+    echo '✅ No infrastructure changes.'
+  fi
+} > "$DIFF_BODY_FILE"
+gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
+"""
+
 # ------------------------------------------------------------------
 # GitHub Actions: build + synth + tests on every pull request
 # ------------------------------------------------------------------
@@ -226,7 +261,11 @@ build.add_job(
     "build",
     Job(
         runs_on=["ubuntu-latest"],
-        permissions={"contents": JobPermission.READ},
+        permissions={
+            "contents": JobPermission.READ,
+            "id_token": JobPermission.WRITE,
+            "pull_requests": JobPermission.WRITE,
+        },
         steps=[
             *SETUP_STEPS,
             # `--no-post` skips the post-synthesis environment setup
@@ -242,9 +281,21 @@ build.add_job(
                 name="Unit tests",
                 run=f"{PROJEN_RUN} {project.test_task.name}",
             ),
+            *AWS_AUTH_STEPS,
             JobStep(
                 name="CDK synth",
                 run=f"{PROJEN_RUN} {_get_task_by_name('synth').name}",
+            ),
+            JobStep(
+                name="CDK diff",
+                run=f"{PROJEN_RUN} {_get_task_by_name('diff').name} > cdk-diff.txt || true",
+            ),
+            JobStep(
+                name="Post CDK diff to PR",
+                env={
+                    "GH_TOKEN": "${{ github.token }}",
+                },
+                run=POST_CDK_DIFF,
             ),
             JobStep(
                 name="Package",
@@ -259,10 +310,6 @@ build.add_job(
 # authenticated via OIDC (no long-lived credentials).
 # Account/region are read from constants.py - the single source of truth.
 # ------------------------------------------------------------------
-EXPORT_CONSTANTS = """echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
-echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
-"""
-
 deploy = github.add_workflow("deploy")
 deploy.on(push={"branches": ["main"]}, workflow_dispatch={})
 deploy.add_job(
@@ -280,14 +327,10 @@ deploy.add_job(
                 name="Unit tests",
                 run=f"{PROJEN_RUN} {project.test_task.name}",
             ),
-            JobStep(name="Export constants from constants.py", run=EXPORT_CONSTANTS),
+            *AWS_AUTH_STEPS,
             JobStep(
-                name="Configure AWS credentials via OIDC",
-                uses="aws-actions/configure-aws-credentials@v4",
-                with_={
-                    "role-to-assume": "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy",
-                    "aws-region": "${{ env.AWS_REGION }}",
-                },
+                name="CDK diff",
+                run=f"{PROJEN_RUN} {_get_task_by_name('diff').name}",
             ),
             JobStep(
                 name="Deploy stack",
