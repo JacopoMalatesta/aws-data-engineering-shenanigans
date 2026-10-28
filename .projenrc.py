@@ -6,6 +6,7 @@ projen-managed file. Never hand-edit those; they are read-only.
 
 from projen import YamlFile
 from projen.awscdk import AwsCdkPythonApp
+from projen.github import GitHubOptions, PullRequestLintOptions, SemanticTitleOptions
 from projen.github.workflows import Job, JobPermission, JobStep
 from projen.vscode import VsCode
 
@@ -30,12 +31,28 @@ project = AwsCdkPythonApp(
         },
     },
     version="0.1.0",
+    github_options=GitHubOptions(
+        pull_request_lint_options=PullRequestLintOptions(
+            semantic_title_options=SemanticTitleOptions(
+                types=[
+                    "build",
+                    "chore",
+                    "ci",
+                    "docs",
+                    "feat",
+                    "fix",
+                    "perf",
+                    "refactor",
+                    "style",
+                    "test",
+                ],
+            ),
+        ),
+    ),
 )
 
 # Local OpenCode helper scripts are not part of the repo.
 project.add_git_ignore(".opencode/")
-
-# vim swap files are transient editor state, never repo content.
 project.add_git_ignore("*.swp")
 
 # ------------------------------------------------------------------
