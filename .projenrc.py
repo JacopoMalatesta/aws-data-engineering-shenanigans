@@ -4,11 +4,16 @@ Edit this file, then re-run it (``npx projen``) to regenerate every
 projen-managed file. Never hand-edit those; they are read-only.
 """
 
-from projen import YamlFile
+from typing import Final
+
+from projen import Task, YamlFile
 from projen.awscdk import AwsCdkPythonApp
 from projen.github import GitHubOptions, PullRequestLintOptions, SemanticTitleOptions
 from projen.github.workflows import Job, JobPermission, JobStep
 from projen.vscode import VsCode
+
+# Shared with both uv_options and the CI setup-uv step in SETUP_STEPS.
+PYTHON_VERSION: Final = "3.13"
 
 project = AwsCdkPythonApp(
     author_email="jacopomalatesta95@gmail.com",
@@ -24,7 +29,7 @@ project = AwsCdkPythonApp(
     # Pin the venv to CPython 3.13 (uv fetches it automatically) and pin
     # requires-python in pyproject.toml accordingly.
     uv_options={
-        "python_exec": "3.13",
+        "python_exec": PYTHON_VERSION,
         "project": {
             "name": "aws-data-engineering-shenanigans",
             "requires_python": ">=3.13,<4.0",
@@ -85,6 +90,17 @@ typecheck = project.add_task(
     exec="ty check --error-on-warning .",
 )
 
+# One-command entry point for static checks (local use; CI runs each
+# check as a separate workflow step instead). Intentionally static-only:
+# pytest runs via the `test` task, locally and in CI.
+check = project.add_task(
+    "check",
+    description="Run all static checks: lint, format check, type check",
+)
+check.spawn(lint)
+check.spawn(format_check)
+check.spawn(typecheck)
+
 # ------------------------------------------------------------------
 # Local git hooks (pre-commit). The config file is projen-generated and
 # mirrors the CI checks:
@@ -143,20 +159,33 @@ YamlFile(
 # Install the git hooks as part of dependency setup: a fresh clone only
 # needs `npx projen install` (uv sync provides the pre-commit binary,
 # and this step writes .git/hooks/pre-commit).
-install_task = project.tasks.try_find("install")
-if install_task is None:
-    msg = "no install task to extend with pre-commit install"
-    raise RuntimeError(msg)
-install_task.exec("pre-commit install")
+#
+# Task lookup helper: `tasks.try_find` returns `Task | None`; several
+# callers below need a hard guarantee, so the narrowing lives here
+# instead of being repeated (ty flags `.name` on a possible None).
 
-# Gate the build: projen locks the "build" task after construction
-# ("do not allow additional build phases"), so the checks are spawned
-# from the unlocked "test" task instead - they run after pytest and
-# before packaging in the build chain.
-test_task = project.test_task
-test_task.spawn(lint)
-test_task.spawn(format_check)
-test_task.spawn(typecheck)
+
+def _require_task(name: str) -> Task:
+    """Fetch a projen task by name.
+
+    Args:
+        name: Registered name of the task (e.g. ``"synth"``).
+
+    Returns:
+        The requested task.
+
+    Raises:
+        RuntimeError: If no task is registered under that name.
+    """
+    task = project.tasks.try_find(name)
+    if task is None:
+        msg = f"no task named {name!r} on the project"
+        raise RuntimeError(msg)
+    return task
+
+
+install_task = _require_task("install")
+install_task.exec("pre-commit install")
 
 # ------------------------------------------------------------------
 # Editor integration: ruff as the Python formatter (format on save)
@@ -177,13 +206,43 @@ vscode.settings.add_settings(
 )
 
 # ------------------------------------------------------------------
-# GitHub Actions: build + synth + tests on every pull request
+# GitHub Actions
+# Both workflows share their environment setup and their static check
+# steps via the constants below, so no step is defined twice. Values
+# that appear more than once are module-level constants (PROJEN_RUN,
+# PYTHON_VERSION); single-use values stay inline in SETUP_STEPS.
+# `projen build` is deliberately NOT used in CI: its aggregated phase
+# chain (synth, test, packaging) conflicts with the granular-steps
+# preference, so CI runs the individual tasks instead. The
+# "Regenerate projen files" step reproduces the regeneration that the
+# old `projen build` step performed via its default (first) phase.
 # ------------------------------------------------------------------
+PROJEN_RUN: Final = "npx projen@0.104.17"
+
 github = project.github
 if github is None:
     msg = "github workflows should be enabled for this project"
     raise RuntimeError(msg)
 
+SETUP_STEPS: Final = [
+    JobStep(uses="actions/checkout@v4"),
+    JobStep(uses="astral-sh/setup-uv@v5", with_={"python-version": PYTHON_VERSION}),
+    JobStep(uses="actions/setup-node@v4", with_={"node-version": "22"}),
+    JobStep(name="Install CDK CLI", run="npm install -g aws-cdk@2.1146.1"),
+    JobStep(name="Install dependencies", run="uv sync --frozen"),
+]
+
+# Task-name derivation requires this list to be defined after the
+# lint/format:check/typecheck task objects exist (see checks section).
+CHECK_STEPS: Final = [
+    JobStep(name="Lint", run=f"{PROJEN_RUN} {lint.name}"),
+    JobStep(name="Format check", run=f"{PROJEN_RUN} {format_check.name}"),
+    JobStep(name="Type check", run=f"{PROJEN_RUN} {typecheck.name}"),
+]
+
+# ------------------------------------------------------------------
+# GitHub Actions: build + synth + tests on every pull request
+# ------------------------------------------------------------------
 build = github.add_workflow("build")
 build.on(pull_request={})
 build.add_job(
@@ -192,12 +251,21 @@ build.add_job(
         runs_on=["ubuntu-latest"],
         permissions={"contents": JobPermission.READ},
         steps=[
-            JobStep(uses="actions/checkout@v4"),
-            JobStep(uses="astral-sh/setup-uv@v5", with_={"python-version": "3.13"}),
-            JobStep(uses="actions/setup-node@v4", with_={"node-version": "22"}),
-            JobStep(name="Install CDK CLI", run="npm install -g aws-cdk@2.1146.1"),
-            JobStep(name="Install dependencies", run="uv sync --frozen"),
-            JobStep(name="Build, synth and test", run="npx projen@0.104.17 build"),
+            *SETUP_STEPS,
+            JobStep(name="Regenerate projen files", run=PROJEN_RUN),
+            *CHECK_STEPS,
+            JobStep(
+                name="Unit tests",
+                run=f"{PROJEN_RUN} {project.test_task.name}",
+            ),
+            JobStep(
+                name="Synth",
+                run=f"{PROJEN_RUN} {_require_task('synth').name}",
+            ),
+            JobStep(
+                name="Package",
+                run=f"{PROJEN_RUN} {_require_task('package').name}",
+            ),
         ],
     ),
 )
@@ -222,15 +290,12 @@ deploy.add_job(
             "contents": JobPermission.READ,
         },
         steps=[
-            JobStep(uses="actions/checkout@v4"),
-            JobStep(uses="astral-sh/setup-uv@v5", with_={"python-version": "3.13"}),
-            JobStep(uses="actions/setup-node@v4", with_={"node-version": "22"}),
-            JobStep(name="Install CDK CLI", run="npm install -g aws-cdk@2.1146.1"),
-            JobStep(name="Install dependencies", run="uv sync --frozen"),
-            JobStep(name="Lint", run="npx projen@0.104.17 lint"),
-            JobStep(name="Format check", run="npx projen@0.104.17 format:check"),
-            JobStep(name="Type check", run="npx projen@0.104.17 typecheck"),
-            JobStep(name="Unit tests", run="npx projen@0.104.17 test"),
+            *SETUP_STEPS,
+            *CHECK_STEPS,
+            JobStep(
+                name="Unit tests",
+                run=f"{PROJEN_RUN} {project.test_task.name}",
+            ),
             JobStep(name="Export constants from constants.py", run=EXPORT_CONSTANTS),
             JobStep(
                 name="Configure AWS credentials via OIDC",
@@ -240,7 +305,10 @@ deploy.add_job(
                     "aws-region": "${{ env.AWS_REGION }}",
                 },
             ),
-            JobStep(name="Deploy stack", run="npx projen@0.104.17 deploy"),
+            JobStep(
+                name="Deploy stack",
+                run=f"{PROJEN_RUN} {_require_task('deploy').name}",
+            ),
         ],
     ),
 )
