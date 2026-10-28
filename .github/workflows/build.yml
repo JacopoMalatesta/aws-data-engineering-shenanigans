@@ -25,6 +25,24 @@ jobs:
       - name: Install dependencies
         id: install_dependencies
         run: uv sync --frozen
-      - name: Build, synth and test
-        id: build_synth_and_test
-        run: npx projen@0.104.17 build
+      - name: Regenerate projen files
+        id: regenerate_projen_files
+        run: npx projen@0.104.17 --no-post --debug
+      - name: Lint
+        id: lint
+        run: npx projen@0.104.17 lint
+      - name: Format check
+        id: format_check
+        run: npx projen@0.104.17 format:check
+      - name: Type check
+        id: type_check
+        run: npx projen@0.104.17 typecheck
+      - name: Unit tests
+        id: unit_tests
+        run: npx projen@0.104.17 test
+      - name: CDK synth
+        id: cdk_synth
+        run: npx projen@0.104.17 synth
+      - name: Package
+        id: package
+        run: npx projen@0.104.17 package

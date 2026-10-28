@@ -29,6 +29,21 @@
         }
       ]
     },
+    "check": {
+      "name": "check",
+      "description": "Run all static checks: lint, format check, type check",
+      "steps": [
+        {
+          "spawn": "lint"
+        },
+        {
+          "spawn": "format:check"
+        },
+        {
+          "spawn": "typecheck"
+        }
+      ]
+    },
     "clobber": {
       "name": "clobber",
       "description": "hard resets to HEAD of origin and cleans the local repo",
@@ -293,15 +308,6 @@
           "execArgs": [
             "pytest"
           ]
-        },
-        {
-          "spawn": "lint"
-        },
-        {
-          "spawn": "format:check"
-        },
-        {
-          "spawn": "typecheck"
         }
       ]
     },
