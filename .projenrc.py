@@ -13,6 +13,7 @@ from projen.github.workflows import Job, JobPermission, JobStep
 from projen.vscode import VsCode
 
 PYTHON_VERSION: Final = "3.13"
+PROJEN_RUN: Final = "npx projen@0.104.17"
 
 project = AwsCdkPythonApp(
     author_email="jacopomalatesta95@gmail.com",
@@ -197,8 +198,6 @@ vscode.settings.add_settings(
     },
 )
 
-PROJEN_RUN: Final = "npx projen@0.104.17"
-
 github = project.github
 if github is None:
     msg = "github workflows should be enabled for this project"
@@ -230,6 +229,10 @@ build.add_job(
         permissions={"contents": JobPermission.READ},
         steps=[
             *SETUP_STEPS,
+            # `--no-post` skips the post-synthesis environment setup
+            # (`uv venv --clear` + unfrozen `uv sync` + `uv lock`) that
+            # bare `npx projen` runs after synthesizing; it would undo and
+            # redo the frozen `uv sync --frozen` install step above.
             JobStep(
                 name="Regenerate projen files",
                 run=f"{PROJEN_RUN} --no-post --debug",
