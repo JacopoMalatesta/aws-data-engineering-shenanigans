@@ -232,8 +232,7 @@ build.add_job(
             *SETUP_STEPS,
             JobStep(
                 name="Regenerate projen files",
-                run=PROJEN_RUN,
-                env={"PROJEN_DISABLE_POST": "true"},
+                run=f"{PROJEN_RUN} --no-post",
             ),
             *CHECK_STEPS,
             JobStep(
