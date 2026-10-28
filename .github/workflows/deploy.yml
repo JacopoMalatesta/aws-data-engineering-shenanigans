@@ -52,6 +52,9 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
           aws-region: ${{ env.AWS_REGION }}
+      - name: CDK diff
+        id: cdk_diff
+        run: npx projen@0.104.17 diff
       - name: Deploy stack
         id: deploy_stack
         run: npx projen@0.104.17 deploy
