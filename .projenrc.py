@@ -14,6 +14,9 @@ from projen.vscode import VsCode
 
 PYTHON_VERSION: Final = "3.13"
 PROJEN_RUN: Final = "npx projen@0.104.17"
+EXPORT_CONSTANTS: Final = """echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
+echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
+"""
 
 project = AwsCdkPythonApp(
     author_email="jacopomalatesta95@gmail.com",
@@ -216,10 +219,6 @@ CHECK_STEPS: Final = [
     JobStep(name="Format check", run=f"{PROJEN_RUN} {format_check.name}"),
     JobStep(name="Type check", run=f"{PROJEN_RUN} {typecheck.name}"),
 ]
-
-EXPORT_CONSTANTS = """echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
-echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
-"""
 
 AWS_AUTH_STEPS: Final = [
     JobStep(name="Export constants from constants.py", run=EXPORT_CONSTANTS),
