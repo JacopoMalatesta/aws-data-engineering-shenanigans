@@ -1,6 +1,11 @@
 {
   "dependencies": [
     {
+      "name": "pre-commit",
+      "version": "4.6.2",
+      "type": "devenv"
+    },
+    {
       "name": "projen",
       "version": "0.104.17",
       "type": "devenv"

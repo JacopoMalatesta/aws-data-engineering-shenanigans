@@ -43,7 +43,7 @@ jobs:
         run: npx projen@0.104.17 test
       - name: Export constants from constants.py
         id: export_constants_from_constants_py
-        run: |-
+        run: |
           echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
           echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
       - name: Configure AWS credentials via OIDC

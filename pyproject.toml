@@ -15,6 +15,7 @@ dependencies = [ "aws-cdk-lib>=2.275.0,<3.0.0", "constructs>=10.5.1,<11.0.0" ]
 
 [dependency-groups]
 dev = [
+  "pre-commit==4.6.2",
   "projen==0.104.17",
   "ruff==0.17.2",
   "ty==0.0.92",

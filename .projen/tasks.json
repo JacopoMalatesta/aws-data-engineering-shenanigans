@@ -173,6 +173,9 @@
             "uv",
             "lock"
           ]
+        },
+        {
+          "exec": "pre-commit install"
         }
       ]
     },
@@ -307,7 +310,7 @@
       "description": "Type check with ty",
       "steps": [
         {
-          "exec": "ty check ."
+          "exec": "ty check --error-on-warning ."
         }
       ]
     },
