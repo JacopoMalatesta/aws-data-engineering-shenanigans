@@ -163,9 +163,11 @@ YamlFile(
 # Task lookup helper: `tasks.try_find` returns `Task | None`; several
 # callers below need a hard guarantee, so the narrowing lives here
 # instead of being repeated (ty flags `.name` on a possible None).
+# Naming pairs with projen's own convention: plain getters raise on
+# failure, `try_find` may return None.
 
 
-def _require_task(name: str) -> Task:
+def _get_task_by_name(name: str) -> Task:
     """Fetch a projen task by name.
 
     Args:
@@ -184,7 +186,7 @@ def _require_task(name: str) -> Task:
     return task
 
 
-install_task = _require_task("install")
+install_task = _get_task_by_name("install")
 install_task.exec("pre-commit install")
 
 # ------------------------------------------------------------------
@@ -260,11 +262,11 @@ build.add_job(
             ),
             JobStep(
                 name="Synth",
-                run=f"{PROJEN_RUN} {_require_task('synth').name}",
+                run=f"{PROJEN_RUN} {_get_task_by_name('synth').name}",
             ),
             JobStep(
                 name="Package",
-                run=f"{PROJEN_RUN} {_require_task('package').name}",
+                run=f"{PROJEN_RUN} {_get_task_by_name('package').name}",
             ),
         ],
     ),
@@ -307,7 +309,7 @@ deploy.add_job(
             ),
             JobStep(
                 name="Deploy stack",
-                run=f"{PROJEN_RUN} {_require_task('deploy').name}",
+                run=f"{PROJEN_RUN} {_get_task_by_name('deploy').name}",
             ),
         ],
     ),
