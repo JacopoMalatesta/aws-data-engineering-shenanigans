@@ -89,8 +89,90 @@ project.add_git_ignore("*.swp")
 
 # ------------------------------------------------------------------
 # Linting, formatting and type checking (ruff + ty).
-# Tool configuration lives in ruff.toml and ty.toml at the repo root.
+# Tool configuration is projen-managed in ruff.toml and ty.toml below.
 # ------------------------------------------------------------------
+# Ruff configuration - projen-managed. Reference:
+# https://docs.astral.sh/ruff/configuration/
+TomlFile(
+    project,
+    "ruff.toml",
+    obj={
+        "target-version": f"py{PYTHON_VERSION.replace('.', '')}",
+        "line-length": 88,
+        "lint": {
+            "preview": True,
+            "select": ["ALL"],
+            "ignore": [
+                # Rules that conflict with the ruff formatter:
+                # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+                "tab-indentation",  # W191
+                "indentation-with-invalid-multiple",  # E111
+                "indentation-with-invalid-multiple-comment",  # E114
+                "over-indented",  # E117
+                "incorrect-blank-line-before-class",  # D203 (D211 preferred)
+                "docstring-tab-indentation",  # D206
+                "triple-single-quotes",  # D300
+                "bad-quotes-inline-string",  # Q000
+                "bad-quotes-multiline-string",  # Q001
+                "bad-quotes-docstring",  # Q002
+                "avoidable-escaped-quote",  # Q003
+                "missing-trailing-comma",  # COM812
+                "prohibited-trailing-comma",  # COM819
+                "multi-line-implicit-string-concatenation",  # ISC002
+                # The formatter governs wrapping (best-effort only), so the
+                # linter must not fight it over line length.
+                "line-too-long",  # E501
+                # Framework-specific rule families for libraries this repo
+                # doesn't use.
+                "AIR",  # airflow
+                "DJ",  # django
+                "FAST",  # fastapi
+                "NPY",  # numpy
+                "PD",  # pandas
+                # Noisy preview rules observed with select=ALL; re-evaluate
+                # on upgrades.
+                "missing-copyright-notice",  # CPY001
+            ],
+            "pydocstyle": {"convention": "google"},
+            "per-file-ignores": {
+                "tests/**": [
+                    "assert",
+                    "undocumented-public-module",
+                    "undocumented-public-class",
+                    "undocumented-public-method",
+                    "undocumented-public-function",
+                    "undocumented-public-package",
+                ],
+                "**/__init__.py": ["undocumented-public-package"],
+            },
+        },
+    },
+)
+# ty configuration - projen-managed. Astral's documented "even stricter"
+# recipe (https://docs.astral.sh/ty/coming-from-mypy-or-pyright/): stricter
+# than mypy/pyright --strict. The known-false-positive trio
+# (division-by-zero, possibly-missing-attribute, possibly-missing-import)
+# is deliberately NOT enabled.
+TomlFile(
+    project,
+    "ty.toml",
+    obj={
+        "rules": {
+            "blanket-ignore-comment": "error",
+            "dynamic-function-decorator-return": "error",
+            "missing-type-argument": "error",
+            "possibly-unresolved-reference": "warn",
+            "unsound-assignment": "error",
+            "unsound-return-statement": "error",
+            "unsound-yield": "error",
+            "unsupported-dynamic-base": "warn",
+        },
+        "analysis": {
+            "strict-equality-semantics": True,
+            "strict-generic-narrowing": True,
+        },
+    },
+)
 lint = project.add_task(
     "lint",
     description="Lint with ruff",
