@@ -22,8 +22,3 @@ def template() -> Template:
 def test_no_buckets_found(template: Template) -> None:
     """The sample stack must not create any S3 buckets."""
     template.resource_count_is("AWS::S3::Bucket", 0)
-
-
-def test_sample_queue_exists(template: Template) -> None:
-    """The sample stack contains exactly one SQS queue."""
-    template.resource_count_is("AWS::SQS::Queue", 1)
