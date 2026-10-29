@@ -11,14 +11,14 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
-      - id: auto_c3fe249f
-        uses: actions/checkout@v4
-      - id: auto_32fcf340
-        uses: astral-sh/setup-uv@v5
+      - id: auto_600da1d4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - id: auto_8ec28ed8
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86
         with:
           python-version: "3.13"
-      - id: auto_e5877e7f
-        uses: actions/setup-node@v4
+      - id: auto_f666a58d
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
       - name: Install CDK CLI
@@ -49,7 +49,7 @@ jobs:
           echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
       - name: Configure AWS credentials via OIDC
         id: configure_aws_credentials_via_oidc
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
           aws-region: ${{ env.AWS_REGION }}

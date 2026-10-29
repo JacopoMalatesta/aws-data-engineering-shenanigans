@@ -2,13 +2,12 @@
 
 from typing import Any
 
-from aws_cdk import Duration, Stack
-from aws_cdk import aws_sqs as sqs
+from aws_cdk import Stack
 from constructs import Construct
 
 
 class MyStack(Stack):
-    """CDK stack containing the sample resources."""
+    """CDK stack (intentionally empty after the sample queue was removed)."""
 
     def __init__(
         self,
@@ -17,11 +16,5 @@ class MyStack(Stack):
         # CDK forwards stack props dynamically, so Any is required here.
         **kwargs: Any,  # ruff: ignore[any-type]
     ) -> None:
-        """Create the stack and its sample resources."""
+        """Create the (empty) stack."""
         super().__init__(scope, construct_id, **kwargs)
-
-        sqs.Queue(
-            self,
-            "SampleQueue",
-            visibility_timeout=Duration.seconds(300),
-        )

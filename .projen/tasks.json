@@ -275,6 +275,72 @@
         }
       ]
     },
+    "security": {
+      "name": "security",
+      "description": "Run all security scanners: dependency audit, secret history, source patterns, config misconfigurations, IaC policy",
+      "steps": [
+        {
+          "spawn": "security:sca"
+        },
+        {
+          "spawn": "security:sast"
+        },
+        {
+          "spawn": "security:secret-scan"
+        },
+        {
+          "spawn": "security:misconfig-scan"
+        },
+        {
+          "spawn": "security:iac-scan"
+        }
+      ]
+    },
+    "security:iac-scan": {
+      "name": "security:iac-scan",
+      "description": "IaC policy scan of the synthesized CloudFormation template (cdk.out)",
+      "steps": [
+        {
+          "exec": "uvx --isolated checkov@3.4.0 --config-file .checkov.yaml"
+        }
+      ]
+    },
+    "security:misconfig-scan": {
+      "name": "security:misconfig-scan",
+      "description": "Misconfiguration scan of the workspace (Dockerfile etc.)",
+      "steps": [
+        {
+          "exec": "trivy fs --config trivy.yaml --exit-code 1 ."
+        }
+      ]
+    },
+    "security:sast": {
+      "name": "security:sast",
+      "description": "Static pattern scan of tracked sources (three rulesets)",
+      "steps": [
+        {
+          "exec": "opengrep scan --config p/security-audit --config p/owasp-top-ten --config p/python ."
+        }
+      ]
+    },
+    "security:sca": {
+      "name": "security:sca",
+      "description": "Audit uv.lock for known vulnerabilities and deprecated projects",
+      "steps": [
+        {
+          "exec": "uv audit --preview-features audit-command"
+        }
+      ]
+    },
+    "security:secret-scan": {
+      "name": "security:secret-scan",
+      "description": "Scan the full git history for leaked credentials",
+      "steps": [
+        {
+          "exec": "gitleaks detect --no-banner --config .gitleaks.toml"
+        }
+      ]
+    },
     "synth": {
       "name": "synth",
       "description": "Synthesizes your cdk app into cdk.out",
