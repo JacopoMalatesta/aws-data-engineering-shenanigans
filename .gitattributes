@@ -9,6 +9,7 @@
 /.github/workflows/security-checks.yml linguist-generated
 /.gitignore linguist-generated
 /.gitleaks.toml linguist-generated
+/.hadolint.yaml linguist-generated
 /.pre-commit-config.yaml linguist-generated
 /.projen/** linguist-generated
 /.projen/deps.json linguist-generated
@@ -17,8 +18,10 @@
 /.vscode/extensions.json linguist-generated linguist-language=JSON-with-Comments
 /.vscode/settings.json linguist-generated
 /cdk.json linguist-generated
+/osv-scanner.toml linguist-generated
 /pyproject.toml linguist-generated
 /ruff.toml linguist-generated
 /trivy.yaml linguist-generated
 /ty.toml linguist-generated
 /uv.toml linguist-generated
+/zizmor.yml linguist-generated
