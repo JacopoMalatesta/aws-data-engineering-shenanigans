@@ -346,7 +346,7 @@
       "description": "Static pattern scan of tracked sources (three rulesets)",
       "steps": [
         {
-          "exec": "opengrep scan --config p/security-audit --config p/owasp-top-ten --config p/python ."
+          "exec": "opengrep scan --verbose --config p/security-audit --config p/owasp-top-ten --config p/python ."
         }
       ]
     },

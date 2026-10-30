@@ -363,7 +363,7 @@ security_sast = project.add_task(
     "security:sast",
     description="Static pattern scan of tracked sources (three rulesets)",
     exec=(
-        "opengrep scan --config p/security-audit --config p/owasp-top-ten"
+        "opengrep scan --verbose --config p/security-audit --config p/owasp-top-ten"
         " --config p/python ."
     ),
 )
@@ -484,7 +484,7 @@ DIFF_BODY_FILE=cdk-diff-comment.md
     echo '✅ No infrastructure changes.'
   fi
 } > "$DIFF_BODY_FILE"
-gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
+gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
 """
 
 # ------------------------------------------------------------------
@@ -529,6 +529,7 @@ build.add_job(
                 name="Post CDK diff to PR",
                 env={
                     "GH_TOKEN": "${{ github.token }}",
+                    "PR_NUMBER": "${{ github.event.pull_request.number }}",
                 },
                 run=POST_CDK_DIFF,
             ),
