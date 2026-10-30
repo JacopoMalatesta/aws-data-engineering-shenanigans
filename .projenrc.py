@@ -13,6 +13,8 @@ from projen.github.workflows import Job, JobPermission, JobStep
 from projen.vscode import VsCode
 
 PYTHON_VERSION: Final = "3.13"
+CI_RUNNER: Final = "ubuntu-latest"
+NODE_VERSION: Final = "22"
 PROJEN_RUN: Final = "npx projen@0.104.17"
 EXPORT_CONSTANTS: Final = """echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
 echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
@@ -444,7 +446,7 @@ if github is None:
 SETUP_STEPS: Final = [
     JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
     JobStep(uses=SETUP_UV_V5_PIN, with_={"python-version": PYTHON_VERSION}),
-    JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+    JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
     JobStep(name="Install CDK CLI", run="npm install -g aws-cdk@2.1146.1"),
     JobStep(name="Install dependencies", run="uv sync --frozen"),
 ]
@@ -495,7 +497,7 @@ build.on(pull_request={})
 build.add_job(
     "build",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions={
             "contents": JobPermission.READ,
             "id_token": JobPermission.WRITE,
@@ -551,7 +553,7 @@ deploy.on(push={"branches": ["main"]}, workflow_dispatch={})
 deploy.add_job(
     "deploy",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions={
             "id_token": JobPermission.WRITE,
             "contents": JobPermission.READ,
@@ -584,7 +586,7 @@ security_permissions: Final = {"contents": JobPermission.READ}
 security.add_job(
     "secret-scan",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions=security_permissions,
         steps=[
             # Full history: secrets may hide in older commits, not just
@@ -608,7 +610,7 @@ security.add_job(
                     "gitleaks version"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
                 name="Secret scan",
                 run=f"{PROJEN_RUN} {security_secret_scan.name}",
@@ -620,7 +622,7 @@ security.add_job(
 security.add_job(
     "sast",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions=security_permissions,
         steps=[
             JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
@@ -637,7 +639,7 @@ security.add_job(
                     "opengrep --version"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
                 name="SAST scan",
                 run=f"{PROJEN_RUN} {security_sast.name}",
@@ -649,7 +651,7 @@ security.add_job(
 security.add_job(
     "misconfig-scan",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions=security_permissions,
         steps=[
             JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
@@ -668,7 +670,7 @@ security.add_job(
                     "trivy --version"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
                 name="Misconfig scan",
                 run=f"{PROJEN_RUN} {security_misconfig_scan.name}",
@@ -680,7 +682,7 @@ security.add_job(
 security.add_job(
     "sca-python",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions=security_permissions,
         steps=[
             JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
@@ -700,7 +702,7 @@ security.add_job(
 security.add_job(
     "iac-scan",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions=security_permissions,
         steps=[
             *SETUP_STEPS,
@@ -723,7 +725,7 @@ security.add_job(
 security.add_job(
     "git-hub-actions-scan",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions=security_permissions,
         steps=[
             JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
@@ -741,7 +743,7 @@ security.add_job(
                     "zizmor --version"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
                 name="Zizmor scan",
                 run=f"{PROJEN_RUN} {security_git_hub_actions_scan.name}",
@@ -753,7 +755,7 @@ security.add_job(
 security.add_job(
     "sca-multi",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions=security_permissions,
         steps=[
             JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
@@ -770,7 +772,7 @@ security.add_job(
                     "osv-scanner --version"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
                 name="OSV scan",
                 run=f"{PROJEN_RUN} {security_sca_multi.name}",
@@ -782,7 +784,7 @@ security.add_job(
 security.add_job(
     "dockerfile-lint",
     Job(
-        runs_on=["ubuntu-latest"],
+        runs_on=[CI_RUNNER],
         permissions=security_permissions,
         steps=[
             JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
@@ -799,7 +801,7 @@ security.add_job(
                     "hadolint --version"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
                 name="Hadolint scan",
                 run=f"{PROJEN_RUN} {security_dockerfile_lint.name}",
