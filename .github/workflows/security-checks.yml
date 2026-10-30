@@ -14,6 +14,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: "0"
+          persist-credentials: false
       - name: Install gitleaks
         id: install_gitleaks
         run: |-
@@ -36,6 +37,8 @@ jobs:
     steps:
       - id: auto_600da1d4
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - name: Install opengrep
         id: install_opengrep
         run: |-
@@ -57,6 +60,8 @@ jobs:
     steps:
       - id: auto_600da1d4
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - name: Install trivy
         id: install_trivy
         run: |-
@@ -72,20 +77,22 @@ jobs:
       - name: Misconfig scan
         id: misconfig_scan
         run: npx projen@0.104.17 security:misconfig-scan
-  sca:
+  sca-python:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - id: auto_600da1d4
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - id: auto_8ec28ed8
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86
         with:
           python-version: "3.13"
       - name: Dependency audit
         id: dependency_audit
-        run: npx projen@0.104.17 security:sca
+        run: npx projen@0.104.17 security:sca-python
   iac-scan:
     runs-on: ubuntu-latest
     permissions:
@@ -93,6 +100,8 @@ jobs:
     steps:
       - id: auto_600da1d4
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - id: auto_8ec28ed8
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86
         with:
@@ -116,3 +125,73 @@ jobs:
       - name: IaC policy scan
         id: iac_policy_scan
         run: npx projen@0.104.17 security:iac-scan
+  git-hub-actions-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - id: auto_600da1d4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install zizmor
+        id: install_zizmor
+        run: |-
+          curl -fsSL -o /tmp/zizmor.tar.gz https://github.com/zizmorcore/zizmor/releases/download/v1.31.1/zizmor-x86_64-unknown-linux-gnu.tar.gz
+          printf '%s  %s\n' d185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99 /tmp/zizmor.tar.gz | sha256sum --check --strict -
+          tar -xzf /tmp/zizmor.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/zizmor /usr/local/bin/zizmor
+          zizmor --version
+      - id: auto_f666a58d
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Zizmor scan
+        id: zizmor_scan
+        run: npx projen@0.104.17 security:git-hub-actions-scan
+  sca-multi:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - id: auto_600da1d4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install osv-scanner
+        id: install_osv-scanner
+        run: |-
+          curl -fsSL -o /tmp/osv-scanner https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64
+          printf '%s  %s\n' 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b /tmp/osv-scanner | sha256sum --check --strict -
+          sudo install -m 0755 /tmp/osv-scanner /usr/local/bin/osv-scanner
+          osv-scanner --version
+      - id: auto_f666a58d
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: OSV scan
+        id: osv_scan
+        run: npx projen@0.104.17 security:sca-multi
+  dockerfile-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - id: auto_600da1d4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install hadolint
+        id: install_hadolint
+        run: |-
+          curl -fsSL -o /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64
+          printf '%s  %s\n' c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507 /tmp/hadolint | sha256sum --check --strict -
+          sudo install -m 0755 /tmp/hadolint /usr/local/bin/hadolint
+          hadolint --version
+      - id: auto_f666a58d
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Hadolint scan
+        id: hadolint_scan
+        run: npx projen@0.104.17 security:dockerfile-lint

@@ -92,6 +92,9 @@ cython_debug/
 !/trivy.yaml
 !/.gitleaks.toml
 !/uv.toml
+!/zizmor.yml
+!/.hadolint.yaml
+!/osv-scanner.toml
 !/.checkov.yaml
 !/.vscode/extensions.json
 !/.vscode/settings.json

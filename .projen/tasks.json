@@ -280,7 +280,7 @@
       "description": "Run all security scanners: dependency audit, secret history, source patterns, config misconfigurations, IaC policy",
       "steps": [
         {
-          "spawn": "security:sca"
+          "spawn": "security:sca-python"
         },
         {
           "spawn": "security:sast"
@@ -293,6 +293,33 @@
         },
         {
           "spawn": "security:iac-scan"
+        },
+        {
+          "spawn": "security:git-hub-actions-scan"
+        },
+        {
+          "spawn": "security:sca-multi"
+        },
+        {
+          "spawn": "security:dockerfile-lint"
+        }
+      ]
+    },
+    "security:dockerfile-lint": {
+      "name": "security:dockerfile-lint",
+      "description": "Lint Dockerfiles with Hadolint",
+      "steps": [
+        {
+          "exec": "find . -name 'Dockerfile*' -not -path './.venv/*' -not -path '*/node_modules/*' -exec hadolint {} +"
+        }
+      ]
+    },
+    "security:git-hub-actions-scan": {
+      "name": "security:git-hub-actions-scan",
+      "description": "Static analysis of GitHub Actions workflows",
+      "steps": [
+        {
+          "exec": "zizmor ."
         }
       ]
     },
@@ -323,8 +350,17 @@
         }
       ]
     },
-    "security:sca": {
-      "name": "security:sca",
+    "security:sca-multi": {
+      "name": "security:sca-multi",
+      "description": "Scan dependencies for known vulnerabilities (OSV)",
+      "steps": [
+        {
+          "exec": "osv-scanner scan source --recursive ."
+        }
+      ]
+    },
+    "security:sca-python": {
+      "name": "security:sca-python",
       "description": "Audit uv.lock for known vulnerabilities and deprecated projects",
       "steps": [
         {

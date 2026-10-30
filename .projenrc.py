@@ -34,6 +34,19 @@ OPENGREP_MANYLINUX_X86_SHA256: Final = (
 )
 CHECKOV_VERSION: Final = "3.4.0"
 
+ZIZMOR_VERSION: Final = "1.31.1"
+OSV_SCANNER_VERSION: Final = "2.7.0"
+HADOLINT_VERSION: Final = "2.15.1"
+ZIZMOR_LINUX_X64_TARBALL_SHA256: Final = (
+    "d185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99"
+)
+OSV_SCANNER_LINUX_AMD64_SHA256: Final = (
+    "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"
+)
+HADOLINT_LINUX_X86_64_SHA256: Final = (
+    "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
+)
+
 CHECKOUT_V4_PIN: Final = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
 SETUP_UV_V5_PIN: Final = "astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86"
 SETUP_NODE_V4_PIN: Final = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"
@@ -315,12 +328,34 @@ TomlFile(
 )
 YamlFile(
     project,
+    "zizmor.yml",
+    obj={
+        "rules": {
+            "adhoc-packages": {
+                "ignore": ["build.yml", "deploy.yml", "security-checks.yml"]
+            },
+            "dangerous-triggers": {"ignore": ["pull-request-lint.yml"]},
+        }
+    },
+)
+YamlFile(
+    project,
+    ".hadolint.yaml",
+    obj={},
+)
+TomlFile(
+    project,
+    "osv-scanner.toml",
+    obj={},
+)
+YamlFile(
+    project,
     ".checkov.yaml",
     obj={"framework": ["cloudformation"], "directory": "cdk.out"},
 )
 
-security_sca = project.add_task(
-    "security:sca",
+security_sca_python = project.add_task(
+    "security:sca-python",
     description="Audit uv.lock for known vulnerabilities and deprecated projects",
     exec="uv audit --preview-features audit-command",
 )
@@ -348,6 +383,25 @@ security_iac_scan = project.add_task(
     exec=f"uvx --isolated checkov@{CHECKOV_VERSION} --config-file .checkov.yaml",
 )
 
+security_git_hub_actions_scan = project.add_task(
+    "security:git-hub-actions-scan",
+    description="Static analysis of GitHub Actions workflows",
+    exec="zizmor .",
+)
+security_sca_multi = project.add_task(
+    "security:sca-multi",
+    description="Scan dependencies for known vulnerabilities (OSV)",
+    exec="osv-scanner scan source --recursive .",
+)
+security_dockerfile_lint = project.add_task(
+    "security:dockerfile-lint",
+    description="Lint Dockerfiles with Hadolint",
+    exec=(
+        "find . -name 'Dockerfile*' -not -path './.venv/*' "
+        "-not -path '*/node_modules/*' -exec hadolint {} +"
+    ),
+)
+
 security = project.add_task(
     "security",
     description=(
@@ -355,11 +409,14 @@ security = project.add_task(
         "source patterns, config misconfigurations, IaC policy"
     ),
 )
-security.spawn(security_sca)
+security.spawn(security_sca_python)
 security.spawn(security_sast)
 security.spawn(security_secret_scan)
 security.spawn(security_misconfig_scan)
 security.spawn(security_iac_scan)
+security.spawn(security_git_hub_actions_scan)
+security.spawn(security_sca_multi)
+security.spawn(security_dockerfile_lint)
 
 # ------------------------------------------------------------------
 # Editor integration: ruff as the Python formatter (format on save)
@@ -385,7 +442,7 @@ if github is None:
     raise RuntimeError(msg)
 
 SETUP_STEPS: Final = [
-    JobStep(uses=CHECKOUT_V4_PIN),
+    JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
     JobStep(uses=SETUP_UV_V5_PIN, with_={"python-version": PYTHON_VERSION}),
     JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
     JobStep(name="Install CDK CLI", run="npm install -g aws-cdk@2.1146.1"),
@@ -531,7 +588,10 @@ security.add_job(
         steps=[
             # Full history: secrets may hide in older commits, not just
             # this PR's diff.
-            JobStep(uses=CHECKOUT_V4_PIN, with_={"fetch-depth": "0"}),
+            JobStep(
+                uses=CHECKOUT_V4_PIN,
+                with_={"fetch-depth": "0", "persist-credentials": False},
+            ),
             JobStep(
                 name="Install gitleaks",
                 run=(
@@ -562,7 +622,7 @@ security.add_job(
         runs_on=["ubuntu-latest"],
         permissions=security_permissions,
         steps=[
-            JobStep(uses=CHECKOUT_V4_PIN),
+            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
             JobStep(
                 name="Install opengrep",
                 run=(
@@ -591,7 +651,7 @@ security.add_job(
         runs_on=["ubuntu-latest"],
         permissions=security_permissions,
         steps=[
-            JobStep(uses=CHECKOUT_V4_PIN),
+            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
             JobStep(
                 name="Install trivy",
                 run=(
@@ -617,12 +677,12 @@ security.add_job(
 )
 
 security.add_job(
-    "sca",
+    "sca-python",
     Job(
         runs_on=["ubuntu-latest"],
         permissions=security_permissions,
         steps=[
-            JobStep(uses=CHECKOUT_V4_PIN),
+            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
             JobStep(
                 uses=SETUP_UV_V5_PIN,
                 with_={"python-version": PYTHON_VERSION},
@@ -630,7 +690,7 @@ security.add_job(
             # No `uv sync` needed: uv audit checks uv.lock directly.
             JobStep(
                 name="Dependency audit",
-                run=f"{PROJEN_RUN} {security_sca.name}",
+                run=f"{PROJEN_RUN} {security_sca_python.name}",
             ),
         ],
     ),
@@ -654,6 +714,94 @@ security.add_job(
             JobStep(
                 name="IaC policy scan",
                 run=f"{PROJEN_RUN} {security_iac_scan.name}",
+            ),
+        ],
+    ),
+)
+
+security.add_job(
+    "git-hub-actions-scan",
+    Job(
+        runs_on=["ubuntu-latest"],
+        permissions=security_permissions,
+        steps=[
+            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
+            JobStep(
+                name="Install zizmor",
+                run=(
+                    "curl -fsSL -o /tmp/zizmor.tar.gz "
+                    "https://github.com/zizmorcore/zizmor/releases/download/"
+                    f"v{ZIZMOR_VERSION}/"
+                    "zizmor-x86_64-unknown-linux-gnu.tar.gz\n"
+                    f"printf '%s  %s\\n' {ZIZMOR_LINUX_X64_TARBALL_SHA256}"
+                    " /tmp/zizmor.tar.gz | sha256sum --check --strict -\n"
+                    "tar -xzf /tmp/zizmor.tar.gz -C /tmp\n"
+                    "sudo install -m 0755 /tmp/zizmor /usr/local/bin/zizmor\n"
+                    "zizmor --version"
+                ),
+            ),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(
+                name="Zizmor scan",
+                run=f"{PROJEN_RUN} {security_git_hub_actions_scan.name}",
+            ),
+        ],
+    ),
+)
+
+security.add_job(
+    "sca-multi",
+    Job(
+        runs_on=["ubuntu-latest"],
+        permissions=security_permissions,
+        steps=[
+            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
+            JobStep(
+                name="Install osv-scanner",
+                run=(
+                    "curl -fsSL -o /tmp/osv-scanner "
+                    "https://github.com/google/osv-scanner/releases/download/"
+                    f"v{OSV_SCANNER_VERSION}/osv-scanner_linux_amd64\n"
+                    f"printf '%s  %s\\n' {OSV_SCANNER_LINUX_AMD64_SHA256}"
+                    " /tmp/osv-scanner | sha256sum --check --strict -\n"
+                    "sudo install -m 0755 /tmp/osv-scanner "
+                    "/usr/local/bin/osv-scanner\n"
+                    "osv-scanner --version"
+                ),
+            ),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(
+                name="OSV scan",
+                run=f"{PROJEN_RUN} {security_sca_multi.name}",
+            ),
+        ],
+    ),
+)
+
+security.add_job(
+    "dockerfile-lint",
+    Job(
+        runs_on=["ubuntu-latest"],
+        permissions=security_permissions,
+        steps=[
+            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
+            JobStep(
+                name="Install hadolint",
+                run=(
+                    "curl -fsSL -o /tmp/hadolint "
+                    "https://github.com/hadolint/hadolint/releases/download/"
+                    f"v{HADOLINT_VERSION}/hadolint-linux-x86_64\n"
+                    f"printf '%s  %s\\n' {HADOLINT_LINUX_X86_64_SHA256}"
+                    " /tmp/hadolint | sha256sum --check --strict -\n"
+                    "sudo install -m 0755 /tmp/hadolint "
+                    "/usr/local/bin/hadolint\n"
+                    "hadolint --version"
+                ),
+            ),
+            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": "22"}),
+            JobStep(
+                name="Hadolint scan",
+                run=f"{PROJEN_RUN} {security_dockerfile_lint.name}",
             ),
         ],
     ),
