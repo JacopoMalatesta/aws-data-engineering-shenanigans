@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         id: install_dependencies
         run: uv sync --frozen
+      - name: Install projen CLI
+        id: install_projen_cli
+        run: npm install -g projen@0.104.17
       - name: Lint
         id: lint
         run: npx projen@0.104.17 lint

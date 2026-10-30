@@ -6,7 +6,7 @@
 /.github/workflows/build.yml linguist-generated
 /.github/workflows/deploy.yml linguist-generated
 /.github/workflows/pull-request-lint.yml linguist-generated
-/.github/workflows/security-checks.yml linguist-generated
+/.github/workflows/security.yml linguist-generated
 /.gitignore linguist-generated
 /.gitleaks.toml linguist-generated
 /.hadolint.yaml linguist-generated

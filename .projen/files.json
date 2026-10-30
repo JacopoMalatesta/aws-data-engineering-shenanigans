@@ -5,7 +5,7 @@
     ".github/workflows/build.yml",
     ".github/workflows/deploy.yml",
     ".github/workflows/pull-request-lint.yml",
-    ".github/workflows/security-checks.yml",
+    ".github/workflows/security.yml",
     ".gitignore",
     ".gitleaks.toml",
     ".hadolint.yaml",

@@ -333,9 +333,7 @@ YamlFile(
     "zizmor.yml",
     obj={
         "rules": {
-            "adhoc-packages": {
-                "ignore": ["build.yml", "deploy.yml", "security-checks.yml"]
-            },
+            "adhoc-packages": {"ignore": ["build.yml", "deploy.yml", "security.yml"]},
             "dangerous-triggers": {"ignore": ["pull-request-lint.yml"]},
         }
     },
@@ -449,6 +447,7 @@ SETUP_STEPS: Final = [
     JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
     JobStep(name="Install CDK CLI", run="npm install -g aws-cdk@2.1146.1"),
     JobStep(name="Install dependencies", run="uv sync --frozen"),
+    JobStep(name="Install projen CLI", run="npm install -g projen@0.104.17"),
 ]
 
 CHECK_STEPS: Final = [
@@ -578,28 +577,24 @@ deploy.add_job(
     ),
 )
 
-security = github.add_workflow("security-checks")
+security = github.add_workflow("security")
 security.on(pull_request={}, workflow_dispatch={})
 
-security_permissions: Final = {"contents": JobPermission.READ}
-
 security.add_job(
-    "secret-scan",
+    "scan",
     Job(
         runs_on=[CI_RUNNER],
-        permissions=security_permissions,
+        permissions={"contents": JobPermission.READ},
         steps=[
-            # Full history: secrets may hide in older commits, not just
-            # this PR's diff.
+            *SETUP_STEPS,
             JobStep(
-                uses=CHECKOUT_V4_PIN,
-                with_={"fetch-depth": "0", "persist-credentials": False},
-            ),
-            JobStep(
-                name="Install gitleaks",
+                name="Secret scan",
+                background=True,
                 run=(
-                    "curl -fsSL -o /tmp/gitleaks.tar.gz"
-                    " "
+                    'if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then\n'
+                    "  git fetch --unshallow\n"
+                    "fi\n"
+                    "curl -fsSL -o /tmp/gitleaks.tar.gz "
                     f"https://github.com/gitleaks/gitleaks/releases/download/"
                     f"v{GITLEAKS_VERSION}/"
                     f"gitleaks_{GITLEAKS_VERSION}_linux_x64.tar.gz\n"
@@ -607,59 +602,29 @@ security.add_job(
                     " /tmp/gitleaks.tar.gz | sha256sum --check --strict -\n"
                     "tar -xzf /tmp/gitleaks.tar.gz -C /tmp\n"
                     "sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks\n"
-                    "gitleaks version"
+                    "gitleaks version\n"
+                    f"{PROJEN_RUN} {security_secret_scan.name}"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
-                name="Secret scan",
-                run=f"{PROJEN_RUN} {security_secret_scan.name}",
-            ),
-        ],
-    ),
-)
-
-security.add_job(
-    "sast",
-    Job(
-        runs_on=[CI_RUNNER],
-        permissions=security_permissions,
-        steps=[
-            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
-            JobStep(
-                name="Install opengrep",
+                name="SAST scan",
+                background=True,
                 run=(
-                    "curl -fsSL -o /tmp/opengrep"
-                    " "
-                    f"https://github.com/opengrep/opengrep/releases/download/v"
-                    f"{OPENGREP_VERSION}/opengrep_manylinux_x86\n"
+                    "curl -fsSL -o /tmp/opengrep "
+                    "https://github.com/opengrep/opengrep/releases/download/"
+                    f"v{OPENGREP_VERSION}/opengrep_manylinux_x86\n"
                     f"printf '%s  %s\\n' {OPENGREP_MANYLINUX_X86_SHA256}"
                     " /tmp/opengrep | sha256sum --check --strict -\n"
                     "sudo install -m 0755 /tmp/opengrep /usr/local/bin/opengrep\n"
-                    "opengrep --version"
+                    "opengrep --version\n"
+                    f"{PROJEN_RUN} {security_sast.name}"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
-                name="SAST scan",
-                run=f"{PROJEN_RUN} {security_sast.name}",
-            ),
-        ],
-    ),
-)
-
-security.add_job(
-    "misconfig-scan",
-    Job(
-        runs_on=[CI_RUNNER],
-        permissions=security_permissions,
-        steps=[
-            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
-            JobStep(
-                name="Install trivy",
+                name="Misconfig scan",
+                background=True,
                 run=(
-                    "curl -fsSL -o /tmp/trivy.tar.gz"
-                    " "
+                    "curl -fsSL -o /tmp/trivy.tar.gz "
                     "https://github.com/aquasecurity/trivy/releases/download/"
                     f"v{TRIVY_VERSION}/"
                     f"trivy_{TRIVY_VERSION}_Linux-64bit.tar.gz\n"
@@ -667,70 +632,27 @@ security.add_job(
                     " /tmp/trivy.tar.gz | sha256sum --check --strict -\n"
                     "tar -xzf /tmp/trivy.tar.gz -C /tmp trivy\n"
                     "sudo install -m 0755 /tmp/trivy /usr/local/bin/trivy\n"
-                    "trivy --version"
+                    "trivy --version\n"
+                    f"{PROJEN_RUN} {security_misconfig_scan.name}"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
-                name="Misconfig scan",
-                run=f"{PROJEN_RUN} {security_misconfig_scan.name}",
-            ),
-        ],
-    ),
-)
-
-security.add_job(
-    "sca-python",
-    Job(
-        runs_on=[CI_RUNNER],
-        permissions=security_permissions,
-        steps=[
-            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
-            JobStep(
-                uses=SETUP_UV_V5_PIN,
-                with_={"python-version": PYTHON_VERSION},
-            ),
-            # No `uv sync` needed: uv audit checks uv.lock directly.
-            JobStep(
-                name="Dependency audit",
+                name="SCA (Python)",
+                background=True,
                 run=f"{PROJEN_RUN} {security_sca_python.name}",
             ),
-        ],
-    ),
-)
-
-security.add_job(
-    "iac-scan",
-    Job(
-        runs_on=[CI_RUNNER],
-        permissions=security_permissions,
-        steps=[
-            *SETUP_STEPS,
             JobStep(
-                name="CDK synth",
-                run=f"{PROJEN_RUN} {_get_task_by_name('synth:silent').name}",
+                name="IaC scan",
+                background=True,
+                run=(
+                    f"{PROJEN_RUN} {_get_task_by_name('synth:silent').name}\n"
+                    f"uvx --isolated checkov@{CHECKOV_VERSION} --version\n"
+                    f"{PROJEN_RUN} {security_iac_scan.name}"
+                ),
             ),
             JobStep(
-                name="Install scanner",
-                run=f"uvx --isolated checkov@{CHECKOV_VERSION} --version",
-            ),
-            JobStep(
-                name="IaC policy scan",
-                run=f"{PROJEN_RUN} {security_iac_scan.name}",
-            ),
-        ],
-    ),
-)
-
-security.add_job(
-    "git-hub-actions-scan",
-    Job(
-        runs_on=[CI_RUNNER],
-        permissions=security_permissions,
-        steps=[
-            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
-            JobStep(
-                name="Install zizmor",
+                name="GitHub Actions scan",
+                background=True,
                 run=(
                     "curl -fsSL -o /tmp/zizmor.tar.gz "
                     "https://github.com/zizmorcore/zizmor/releases/download/"
@@ -740,27 +662,13 @@ security.add_job(
                     " /tmp/zizmor.tar.gz | sha256sum --check --strict -\n"
                     "tar -xzf /tmp/zizmor.tar.gz -C /tmp\n"
                     "sudo install -m 0755 /tmp/zizmor /usr/local/bin/zizmor\n"
-                    "zizmor --version"
+                    "zizmor --version\n"
+                    f"{PROJEN_RUN} {security_git_hub_actions_scan.name}"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
-                name="Zizmor scan",
-                run=f"{PROJEN_RUN} {security_git_hub_actions_scan.name}",
-            ),
-        ],
-    ),
-)
-
-security.add_job(
-    "sca-multi",
-    Job(
-        runs_on=[CI_RUNNER],
-        permissions=security_permissions,
-        steps=[
-            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
-            JobStep(
-                name="Install osv-scanner",
+                name="SCA (multi)",
+                background=True,
                 run=(
                     "curl -fsSL -o /tmp/osv-scanner "
                     "https://github.com/google/osv-scanner/releases/download/"
@@ -769,27 +677,13 @@ security.add_job(
                     " /tmp/osv-scanner | sha256sum --check --strict -\n"
                     "sudo install -m 0755 /tmp/osv-scanner "
                     "/usr/local/bin/osv-scanner\n"
-                    "osv-scanner --version"
+                    "osv-scanner --version\n"
+                    f"{PROJEN_RUN} {security_sca_multi.name}"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
             JobStep(
-                name="OSV scan",
-                run=f"{PROJEN_RUN} {security_sca_multi.name}",
-            ),
-        ],
-    ),
-)
-
-security.add_job(
-    "dockerfile-lint",
-    Job(
-        runs_on=[CI_RUNNER],
-        permissions=security_permissions,
-        steps=[
-            JobStep(uses=CHECKOUT_V4_PIN, with_={"persist-credentials": False}),
-            JobStep(
-                name="Install hadolint",
+                name="Dockerfile scan",
+                background=True,
                 run=(
                     "curl -fsSL -o /tmp/hadolint "
                     "https://github.com/hadolint/hadolint/releases/download/"
@@ -798,16 +692,14 @@ security.add_job(
                     " /tmp/hadolint | sha256sum --check --strict -\n"
                     "sudo install -m 0755 /tmp/hadolint "
                     "/usr/local/bin/hadolint\n"
-                    "hadolint --version"
+                    "hadolint --version\n"
+                    f"{PROJEN_RUN} {security_dockerfile_lint.name}"
                 ),
             ),
-            JobStep(uses=SETUP_NODE_V4_PIN, with_={"node-version": NODE_VERSION}),
-            JobStep(
-                name="Hadolint scan",
-                run=f"{PROJEN_RUN} {security_dockerfile_lint.name}",
-            ),
+            JobStep(wait_all=True),
         ],
     ),
 )
+
 
 project.synth()
