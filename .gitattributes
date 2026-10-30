@@ -21,6 +21,7 @@
 /osv-scanner.toml linguist-generated
 /pyproject.toml linguist-generated
 /ruff.toml linguist-generated
+/setup.cfg linguist-generated
 /trivy.yaml linguist-generated
 /ty.toml linguist-generated
 /uv.toml linguist-generated
