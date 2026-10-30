@@ -21,7 +21,7 @@ jobs:
       - id: auto_f666a58d
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: "22"
+          node-version: "24"
       - name: Install CDK CLI
         id: install_cdk_cli
         run: npm install -g aws-cdk@2.1146.1
