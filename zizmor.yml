@@ -5,7 +5,7 @@ rules:
     ignore:
       - build.yml
       - deploy.yml
-      - security-checks.yml
+      - security.yml
   dangerous-triggers:
     ignore:
       - pull-request-lint.yml

@@ -100,5 +100,5 @@ cython_debug/
 !/.vscode/settings.json
 !/.github/workflows/build.yml
 !/.github/workflows/deploy.yml
-!/.github/workflows/security-checks.yml
+!/.github/workflows/security.yml
 !/.projenrc.py
