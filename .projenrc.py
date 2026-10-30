@@ -14,7 +14,7 @@ from projen.vscode import VsCode
 
 PYTHON_VERSION: Final = "3.13"
 CI_RUNNER: Final = "ubuntu-latest"
-NODE_VERSION: Final = "22"
+NODE_VERSION: Final = "24"
 PROJEN_RUN: Final = "npx projen@0.104.17"
 EXPORT_CONSTANTS: Final = """echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
 echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
