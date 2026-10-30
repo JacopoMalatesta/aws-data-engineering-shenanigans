@@ -328,7 +328,7 @@
       "description": "IaC policy scan of the synthesized CloudFormation template (cdk.out)",
       "steps": [
         {
-          "exec": "uvx --isolated checkov@3.4.0 --config-file .checkov.yaml"
+          "exec": "uvx --isolated checkov@3.4.0 --config-file .checkov.yaml --show-config"
         }
       ]
     },
