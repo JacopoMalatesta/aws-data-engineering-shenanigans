@@ -380,7 +380,7 @@ security_misconfig_scan = project.add_task(
 security_iac_scan = project.add_task(
     "security:iac-scan",
     description="IaC policy scan of the synthesized CloudFormation template (cdk.out)",
-    exec=f"uvx --isolated checkov@{CHECKOV_VERSION} --config-file .checkov.yaml",
+    exec=f"uvx --isolated checkov@{CHECKOV_VERSION} --config-file .checkov.yaml --show-config",
 )
 
 security_git_hub_actions_scan = project.add_task(
