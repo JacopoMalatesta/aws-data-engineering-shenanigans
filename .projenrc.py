@@ -363,7 +363,7 @@ security_sast = project.add_task(
     "security:sast",
     description="Static pattern scan of tracked sources (three rulesets)",
     exec=(
-        "opengrep scan --config p/security-audit --config p/owasp-top-ten"
+        "opengrep scan --verbose --config p/security-audit --config p/owasp-top-ten"
         " --config p/python ."
     ),
 )
