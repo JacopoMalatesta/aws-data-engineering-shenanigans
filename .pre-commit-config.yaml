@@ -32,3 +32,10 @@ repos:
         language: unsupported
         pass_filenames: false
         files: \.py$
+      - id: basedpyright-check
+        name: basedpyright
+        entry: ./.venv/bin/basedpyright
+        args: []
+        language: unsupported
+        pass_filenames: false
+        files: \.py$

@@ -1,6 +1,11 @@
 {
   "dependencies": [
     {
+      "name": "basedpyright",
+      "version": "1.40.2",
+      "type": "devenv"
+    },
+    {
       "name": "pre-commit",
       "version": "4.6.2",
       "type": "devenv"

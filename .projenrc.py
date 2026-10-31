@@ -6,7 +6,7 @@ projen-managed file. Never hand-edit those; they are read-only.
 
 from typing import Final
 
-from projen import Task, TomlFile, YamlFile
+from projen import JsonFile, Task, TomlFile, YamlFile
 from projen.awscdk import AwsCdkPythonApp
 from projen.github import GitHubOptions, PullRequestLintOptions, SemanticTitleOptions
 from projen.github.workflows import Job, JobPermission, JobStep
@@ -63,7 +63,12 @@ project = AwsCdkPythonApp(
     # Exact pins: ty is pre-1.0 (unstable API), ruff's rule set evolves,
     # and the pre-commit hooks below must resolve to the same versions
     # CI uses, so all three are pinned rather than ranged.
-    dev_deps=["pre-commit@4.6.2", "ruff@0.17.2", "ty@0.0.92"],
+    dev_deps=[
+        "basedpyright@1.40.2",
+        "pre-commit@4.6.2",
+        "ruff@0.17.2",
+        "ty@0.0.92",
+    ],
     module_name="aws_data_engineering_shenanigans",
     name="aws-data-engineering-shenanigans",
     pytest_options={"version": "9.0.3"},
@@ -208,6 +213,34 @@ format_check = project.add_task(
     description="Verify ruff formatting",
     exec="ruff format --check .",
 )
+# basedpyright configuration - projen-managed. Reference:
+# https://docs.basedpyright.com/latest/configuration/config-files/
+JsonFile(
+    project,
+    "pyrightconfig.json",
+    marker=False,
+    obj={
+        "pythonVersion": PYTHON_VERSION,
+        "pythonPlatform": "All",
+        "typeCheckingMode": "all",
+        "enableBasedFeatures": True,
+        "failOnWarnings": True,
+        "exclude": [
+            "cdk.out",
+            "dist",
+            ".venv",
+            "node_modules",
+            "**/__pycache__",
+        ],
+    },
+)
+
+static_analysis = project.add_task(
+    "static-analysis",
+    description="Static analysis with basedpyright",
+    exec="basedpyright",
+)
+
 typecheck = project.add_task(
     "typecheck",
     description="Type check with ty",
@@ -221,6 +254,7 @@ check = project.add_task(
 check.spawn(lint)
 check.spawn(format_check)
 check.spawn(typecheck)
+check.spawn(static_analysis)
 
 # ------------------------------------------------------------------
 # Local git hooks (pre-commit). The config file is projen-generated and
@@ -267,6 +301,15 @@ YamlFile(
                         "name": "ty check",
                         "entry": "./.venv/bin/ty",
                         "args": ["check", "--error-on-warning", "."],
+                        "language": "unsupported",
+                        "pass_filenames": False,
+                        "files": r"\.py$",
+                    },
+                    {
+                        "id": "basedpyright-check",
+                        "name": "basedpyright",
+                        "entry": "./.venv/bin/basedpyright",
+                        "args": [],
                         "language": "unsupported",
                         "pass_filenames": False,
                         "files": r"\.py$",
@@ -424,8 +467,9 @@ security.spawn(security_dockerfile_lint)
 # ------------------------------------------------------------------
 vscode = VsCode(project)
 vscode.extensions.add_recommendations(
-    "charliermarsh.ruff",  # ruff linter and formatter
     "astral-sh.ty",  # ty type checker and language server
+    "charliermarsh.ruff",  # ruff linter and formatter
+    "detachhead.basedpyright",  # basedpyright type checker and language server
 )
 vscode.settings.add_settings(
     {
@@ -454,6 +498,7 @@ CHECK_STEPS: Final = [
     JobStep(name="Lint", run=f"{PROJEN_RUN} {lint.name}"),
     JobStep(name="Format check", run=f"{PROJEN_RUN} {format_check.name}"),
     JobStep(name="Type check", run=f"{PROJEN_RUN} {typecheck.name}"),
+    JobStep(name="Static Analysis", run=f"{PROJEN_RUN} {static_analysis.name}"),
 ]
 
 AWS_AUTH_STEPS: Final = [
