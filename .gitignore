@@ -88,6 +88,7 @@ cython_debug/
 *.swp
 !/ruff.toml
 !/ty.toml
+!/pyrightconfig.json
 !/.pre-commit-config.yaml
 !/trivy.yaml
 !/.gitleaks.toml

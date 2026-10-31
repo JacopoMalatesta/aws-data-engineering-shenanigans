@@ -44,6 +44,9 @@ jobs:
       - name: Type check
         id: type_check
         run: npx projen@0.104.17 typecheck
+      - name: Static Analysis
+        id: static_analysis
+        run: npx projen@0.104.17 static-analysis
       - name: Unit tests
         id: unit_tests
         run: npx projen@0.104.17 test

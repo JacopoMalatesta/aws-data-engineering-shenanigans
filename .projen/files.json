@@ -18,6 +18,7 @@
     "cdk.json",
     "osv-scanner.toml",
     "pyproject.toml",
+    "pyrightconfig.json",
     "ruff.toml",
     "trivy.yaml",
     "ty.toml",
