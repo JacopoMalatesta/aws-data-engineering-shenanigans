@@ -106,6 +106,8 @@ project = AwsCdkPythonApp(
 # Local OpenCode helper scripts are not part of the repo.
 project.add_git_ignore(".opencode/")
 project.add_git_ignore("*.swp")
+# Temporary non-hidden copy of .projenrc.py used by the static-analysis task.
+project.add_git_ignore("projenrc_check.py")
 
 # ------------------------------------------------------------------
 # Linting, formatting and type checking (ruff + ty).
@@ -113,7 +115,7 @@ project.add_git_ignore("*.swp")
 # ------------------------------------------------------------------
 # Ruff configuration - projen-managed. Reference:
 # https://docs.astral.sh/ruff/configuration/
-TomlFile(
+_ = TomlFile(
     project,
     "ruff.toml",
     obj={
@@ -173,7 +175,7 @@ TomlFile(
 # than mypy/pyright --strict. The known-false-positive trio
 # (division-by-zero, possibly-missing-attribute, possibly-missing-import)
 # is deliberately NOT enabled.
-TomlFile(
+_ = TomlFile(
     project,
     "ty.toml",
     obj={
@@ -198,12 +200,12 @@ lint = project.add_task(
     description="Lint with ruff",
     exec="ruff check .",
 )
-project.add_task(
+_ = project.add_task(
     "lint:fix",
     description="Autofix ruff violations (safe fixes only)",
     exec="ruff check --fix .",
 )
-project.add_task(
+_ = project.add_task(
     "format",
     description="Format code with ruff",
     exec="ruff format .",
@@ -215,7 +217,7 @@ format_check = project.add_task(
 )
 # basedpyright configuration - projen-managed. Reference:
 # https://docs.basedpyright.com/latest/configuration/config-files/
-JsonFile(
+_ = JsonFile(
     project,
     "pyrightconfig.json",
     marker=False,
@@ -237,8 +239,14 @@ JsonFile(
 
 static_analysis = project.add_task(
     "static-analysis",
-    description="Static analysis with basedpyright",
-    exec="basedpyright",
+    description="Static analysis with basedpyright (incl. hidden .projenrc.py)",
+    exec=(
+        "cp .projenrc.py projenrc_check.py && "
+        "basedpyright; "
+        "rc=$?; "
+        "rm -f projenrc_check.py; "
+        "[ $rc -eq 0 ]"
+    ),
 )
 
 typecheck = project.add_task(
@@ -272,7 +280,7 @@ check.spawn(static_analysis)
 # repo root. `language: unsupported` (pre-commit >= 4.4, formerly
 # `system`) means pre-commit installs no isolated environment.
 # ------------------------------------------------------------------
-YamlFile(
+_ = YamlFile(
     project,
     ".pre-commit-config.yaml",
     obj={
@@ -347,7 +355,7 @@ def _get_task_by_name(name: str) -> Task:
 install_task = _get_task_by_name("install")
 install_task.exec("pre-commit install")
 
-YamlFile(
+_ = YamlFile(
     project,
     "trivy.yaml",
     obj={
@@ -358,7 +366,7 @@ YamlFile(
         },
     },
 )
-TomlFile(
+_ = TomlFile(
     project,
     ".gitleaks.toml",
     obj={
@@ -366,12 +374,12 @@ TomlFile(
         "extend": {"useDefault": True},
     },
 )
-TomlFile(
+_ = TomlFile(
     project,
     "uv.toml",
     obj={"audit": {"ignore": []}},
 )
-YamlFile(
+_ = YamlFile(
     project,
     "zizmor.yml",
     obj={
@@ -381,17 +389,17 @@ YamlFile(
         }
     },
 )
-YamlFile(
+_ = YamlFile(
     project,
     ".hadolint.yaml",
     obj={},
 )
-TomlFile(
+_ = TomlFile(
     project,
     "osv-scanner.toml",
     obj={},
 )
-YamlFile(
+_ = YamlFile(
     project,
     ".checkov.yaml",
     obj={"framework": ["cloudformation"], "directory": "cdk.out"},

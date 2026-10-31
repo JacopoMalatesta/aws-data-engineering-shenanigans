@@ -382,10 +382,10 @@
     },
     "static-analysis": {
       "name": "static-analysis",
-      "description": "Static analysis with basedpyright",
+      "description": "Static analysis with basedpyright (incl. hidden .projenrc.py)",
       "steps": [
         {
-          "exec": "basedpyright"
+          "exec": "cp .projenrc.py projenrc_check.py && basedpyright; rc=$?; rm -f projenrc_check.py; [ $rc -eq 0 ]"
         }
       ]
     },

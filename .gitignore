@@ -86,6 +86,7 @@ cython_debug/
 .cdk.staging/
 .opencode/
 *.swp
+projenrc_check.py
 !/ruff.toml
 !/ty.toml
 !/pyrightconfig.json
