@@ -41,6 +41,9 @@
         },
         {
           "spawn": "typecheck"
+        },
+        {
+          "spawn": "static-analysis"
         }
       ]
     },
@@ -374,6 +377,15 @@
       "steps": [
         {
           "exec": "gitleaks detect --no-banner --config .gitleaks.toml"
+        }
+      ]
+    },
+    "static-analysis": {
+      "name": "static-analysis",
+      "description": "Static analysis with basedpyright",
+      "steps": [
+        {
+          "exec": "basedpyright"
         }
       ]
     },

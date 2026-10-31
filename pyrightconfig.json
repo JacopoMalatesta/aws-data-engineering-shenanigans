@@ -1,0 +1,14 @@
+{
+  "pythonVersion": "3.13",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "all",
+  "enableBasedFeatures": true,
+  "failOnWarnings": true,
+  "exclude": [
+    "cdk.out",
+    "dist",
+    ".venv",
+    "node_modules",
+    "**/__pycache__"
+  ]
+}
