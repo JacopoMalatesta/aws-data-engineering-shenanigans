@@ -301,7 +301,7 @@
           "spawn": "security:git-hub-actions-scan"
         },
         {
-          "spawn": "security:sca-multi"
+          "spawn": "security:sca-multi-language"
         },
         {
           "spawn": "security:dockerfile-lint"
@@ -353,8 +353,8 @@
         }
       ]
     },
-    "security:sca-multi": {
-      "name": "security:sca-multi",
+    "security:sca-multi-language": {
+      "name": "security:sca-multi-language",
       "description": "Scan dependencies for known vulnerabilities (OSV)",
       "steps": [
         {

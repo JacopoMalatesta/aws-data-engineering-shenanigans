@@ -7,27 +7,27 @@ line-length = 88
 preview = true
 select = [ "ALL" ]
 ignore = [
-  "tab-indentation",
-  "indentation-with-invalid-multiple",
-  "indentation-with-invalid-multiple-comment",
-  "over-indented",
-  "incorrect-blank-line-before-class",
-  "docstring-tab-indentation",
-  "triple-single-quotes",
-  "bad-quotes-inline-string",
-  "bad-quotes-multiline-string",
-  "bad-quotes-docstring",
-  "avoidable-escaped-quote",
-  "missing-trailing-comma",
-  "prohibited-trailing-comma",
-  "multi-line-implicit-string-concatenation",
-  "line-too-long",
   "AIR",
   "DJ",
   "FAST",
   "NPY",
   "PD",
-  "missing-copyright-notice"
+  "avoidable-escaped-quote",
+  "bad-quotes-docstring",
+  "bad-quotes-inline-string",
+  "bad-quotes-multiline-string",
+  "docstring-tab-indentation",
+  "incorrect-blank-line-before-class",
+  "indentation-with-invalid-multiple",
+  "indentation-with-invalid-multiple-comment",
+  "line-too-long",
+  "missing-copyright-notice",
+  "missing-trailing-comma",
+  "multi-line-implicit-string-concatenation",
+  "over-indented",
+  "prohibited-trailing-comma",
+  "tab-indentation",
+  "triple-single-quotes"
 ]
 
   [lint.pydocstyle]
@@ -36,10 +36,10 @@ ignore = [
   [lint.per-file-ignores]
   "tests/**" = [
   "assert",
-  "undocumented-public-module",
   "undocumented-public-class",
-  "undocumented-public-method",
   "undocumented-public-function",
+  "undocumented-public-method",
+  "undocumented-public-module",
   "undocumented-public-package"
 ]
   "**/__init__.py" = [ "undocumented-public-package" ]
