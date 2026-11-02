@@ -11,23 +11,26 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
-      - id: auto_600da1d4
+      - name: Checkout repository
+        id: checkout_repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - id: auto_8ec28ed8
+      - name: Install uv
+        id: install_uv
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86
         with:
           python-version: "3.13"
-      - id: auto_f666a58d
+      - name: Install Node
+        id: install_node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24"
       - name: Install CDK CLI
         id: install_cdk_cli
         run: npm install -g aws-cdk@2.1146.1
-      - name: Install dependencies
-        id: install_dependencies
+      - name: Install Python dependencies
+        id: install_python_dependencies
         run: uv sync --frozen
       - name: Install projen CLI
         id: install_projen_cli
@@ -35,28 +38,28 @@ jobs:
       - name: Regenerate projen files
         id: regenerate_projen_files
         run: npx projen@0.104.17 --no-post --debug
-      - name: Lint
-        id: lint
+      - name: Python lint
+        id: python_lint
         run: npx projen@0.104.17 lint
-      - name: Format check
-        id: format_check
+      - name: Python format check
+        id: python_format_check
         run: npx projen@0.104.17 format:check
-      - name: Type check
-        id: type_check
+      - name: Python typecheck
+        id: python_typecheck
         run: npx projen@0.104.17 typecheck
-      - name: Static Analysis
-        id: static_analysis
+      - name: Python static analysis
+        id: python_static_analysis
         run: npx projen@0.104.17 static-analysis
-      - name: Unit tests
-        id: unit_tests
+      - name: Python unit tests
+        id: python_unit_tests
         run: npx projen@0.104.17 test
-      - name: Export constants from constants.py
-        id: export_constants_from_constants_py
+      - name: Export AWS account ID and region
+        id: export_aws_account_id_and_region
         run: |
           echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
           echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
-      - name: Configure AWS credentials via OIDC
-        id: configure_aws_credentials_via_oidc
+      - name: AWS credentials via OIDC
+        id: aws_credentials_via_oidc
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
@@ -64,11 +67,11 @@ jobs:
       - name: CDK synth
         id: cdk_synth
         run: npx projen@0.104.17 synth
-      - name: CDK diff
-        id: cdk_diff
+      - name: CDK diff capture
+        id: cdk_diff_capture
         run: npx projen@0.104.17 diff > cdk-diff.txt || true
-      - name: Post CDK diff to PR
-        id: post_cdk_diff_to_pr
+      - name: Post CDK diff
+        id: post_cdk_diff
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -86,6 +89,6 @@ jobs:
             fi
           } > "$DIFF_BODY_FILE"
           gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
-      - name: Package
-        id: package
+      - name: Package Python code
+        id: package_python_code
         run: npx projen@0.104.17 package

@@ -5,26 +5,30 @@ GitHub Actions (push to `main`).
 
 ## Layout
 
-- **`.projenrc.py` is the single source of truth.** Edit it, then run
-  `npx projen` to re-synthesize every generated file. Generated files are
-  read-only and guarded by projen's anti-tamper mechanism.
-- `ruff.toml` and `ty.toml` are hand-authored (projen has no components
-  for them).
-- `constants.py` pins the AWS account and region; the deploy workflow
-  exports them for OIDC.
+- **`projen_config.py` is the single source of truth.** `.projenrc.py` is
+  a thin entry shim over it; shared enums live in `projen_types.py` and
+  `projen_setup.py` assembles the project from the config. Edit the
+  config, then run `npx projen` to re-synthesize every generated file.
+  Generated files are read-only on disk — never hand-edit them.
+- `ruff.toml` and `ty.toml` are projen-managed raw files (projen has no
+  dedicated components for them).
+- `constants.py` pins the AWS account and region; the build and deploy
+  workflows export them for OIDC.
 - The security scanner policy files (`.checkov.yaml`, `trivy.yaml`,
-  `.gitleaks.toml`, `uv.toml`) are projen-generated via `.projenrc.py`
+  `.gitleaks.toml`, `uv.toml`, `zizmor.yml`, `.hadolint.yaml`,
+  `osv-scanner.toml`) are projen-managed via `projen_config.py`
   (see the Security checks section).
 
 ## Local checks (pre-commit)
 
 `.pre-commit-config.yaml` is projen-generated and mirrors the CI checks:
 
-| hook            | runs                                        | when                             |
-| --------------- | ------------------------------------------- | -------------------------------- |
-| `ruff-lint-fix` | `.venv/bin/ruff check --fix`                | staged `.py` files               |
-| `ruff-format`   | `.venv/bin/ruff format`                     | staged `.py` files               |
-| `ty-check`      | `.venv/bin/ty check --error-on-warning .`   | staged `.py` triggers whole-repo |
+| hook                 | runs                                      | when        |
+| -------------------- | ----------------------------------------- | ----------- |
+| `ruff-lint-fix`      | `.venv/bin/ruff check --fix`              | staged `.py` files               |
+| `ruff-format`        | `.venv/bin/ruff format`                   | staged `.py` files               |
+| `ty-check`           | `.venv/bin/ty check --error-on-warning .` | staged `.py` triggers whole-repo |
+| `basedpyright-check` | `.venv/bin/basedpyright`                  | staged `.py` triggers whole-repo |
 
 Fixer hooks rewrite files in place; pre-commit then fails the commit
 once — re-stage with `git add` and commit again.
@@ -43,21 +47,24 @@ $ SKIP=ruff-format git commit -m "..."  # skip one hook for one commit
 
 ## Security checks
 
-Five scanners run in parallel on every pull request (the `security-checks`
-workflow, one job each) and locally via the `security` task (each scanner
-has its own `security:<name>` task). All tool versions are pinned in
-`.projenrc.py`; CI downloads the three standalone binaries digest-pinned
-from their GitHub releases, so a silently repointed release URL cannot
-swap a binary. The `uv audit` run goes through the pinned uv itself,
-which reuses the lockfile.
+Eight scanners run in parallel (as background steps) in the `scan` job of
+the `security` workflow on every pull request, and locally via the
+`security` task (each scanner has its own `security:<name>` task). All
+tool versions are pinned in `projen_config.py`; CI downloads the six
+standalone binaries digest-pinned from their GitHub releases, so a
+silently repointed release URL cannot swap a binary. The `uv audit` run
+goes through the pinned uv itself, which reuses the lockfile.
 
-| job              | scanner              | input               | policy file      | local task                 |
-| ---------------- | -------------------- | ------------------- | ---------------- | -------------------------- |
-| `sca`            | `uv audit` (preview) | `uv.lock`           | `uv.toml`        | `security:sca`             |
-| `sast`           | `opengrep`           | git-tracked sources | `(rulesets p/)`  | `security:sast`            |
-| `secret-scan`    | `gitleaks`           | full git history    | `.gitleaks.toml` | `security:secret-scan`     |
-| `misconfig-scan` | `trivy`              | workspace files     | `trivy.yaml`     | `security:misconfig-scan`  |
-| `iac-scan`       | `checkov`            | synthesized CF template (`cdk.out/`) | `.checkov.yaml` | `security:iac-scan` |
+| scanner              | tool                 | input               | policy file      | local task                     |
+| -------------------- | -------------------- | ------------------- | ---------------- | ------------------------------ |
+| `secret-scan`        | `gitleaks`           | full git history    | `.gitleaks.toml` | `security:secret-scan`         |
+| `sast`               | `opengrep`           | git-tracked sources | (rulesets `p/`)  | `security:sast`                |
+| `misconfig-scan`     | `trivy`              | workspace files     | `trivy.yaml`     | `security:misconfig-scan`      |
+| `sca-python`         | `uv audit` (preview) | `uv.lock`           | `uv.toml`        | `security:sca-python`          |
+| `iac-scan`           | `checkov`            | synthesized CF template (`cdk.out/`) | `.checkov.yaml` | `security:iac-scan` |
+| `github-actions-scan` | `zizmor`            | `.github/workflows` | `zizmor.yml`     | `security:github-actions-scan` |
+| `sca-multi-language` | `osv-scanner`        | manifests and lockfiles | `osv-scanner.toml` | `security:sca-multi-language` |
+| `dockerfile-lint`    | `hadolint`           | Dockerfiles         | `.hadolint.yaml` | `security:dockerfile-lint`     |
 
 All scans fail closed: a finding fails the job. Consciously accepted
 findings are silenced in the scanner's policy file (currently empty — none
@@ -71,33 +78,35 @@ flagged `PYSEC-2026-1845`); the `[audit].ignore` entries in `uv.toml`
 are the last resort, for findings that are demonstrably unreachable.
 
 **Checkov (IaC).** Checkov now scans the synthesized CloudFormation
-template in `cdk.out/` (job `checkov`). The `skip-check` mechanism in
-`.checkov.yaml`/CLI is broken in 3.4.0 (silent no-op), so it is never
-used. To suppress a finding, attach it to the resource in CDK instead:
+template in `cdk.out/` (step `IaC scan` in the `scan` job). The
+`skip-check` mechanism in `.checkov.yaml`/CLI is broken in 3.4.0 (silent
+no-op), so it is never used. To suppress a finding, attach it to the
+resource in CDK instead:
 ```
 cfn_resource.add_metadata("checkov", {
     "skip": [{"id": "CKV_AWS_27", "comment": "reason"}],
 })
 ```
 The sample SQS queue was removed, so CKV_AWS_27 / trivy AWS-0096 no
-longer apply. The `iac-scan` job synthesizes `cdk.out/` without AWS
+longer apply. The `IaC scan` step synthesizes `cdk.out/` without AWS
 auth (the stack is empty and uses no context lookups); if future CDK
-code needs lookups, add `AWS_AUTH_STEPS` to that job. The scan is
+code needs lookups, add `JobStepName.AWS_CREDENTIALS` (declared once in
+`GITHUB_JOB_STEPS`) to that job's step list in `projen_config.py`. The scan is
 vacuous until resources are added. The full investigation notes live in
 PR #5.
-Local prerequisites: `gitleaks`, `opengrep`, `trivy` and `checkov`
-(via `uvx`) must be on `PATH` to run their tasks (pin the versions used
+Local prerequisites: `gitleaks`, `opengrep`, `trivy`, `zizmor`,
+`osv-scanner` and `hadolint` (standalone binaries) plus `checkov` (via
+`uvx`) must be on `PATH` to run their tasks (pin the versions used
 by CI - see the install steps in
-`.github/workflows/security-checks.yml`). The `uv` version used by your
+`.github/workflows/security.yml`). The `uv` version used by your
 shell only has to satisfy `uv audit`; the `checkov` task also needs the
 CDK CLI to synthesize `cdk.out/`.
 Manual one-time changes are now minimal; both were applied via the GitHub
 API as part of this PR (see the PR description for the exact payloads):
 
-1. **Branch rules on `main`** — pushed to `main` requires an open PR whose
-   status checks pass (`build`, `Validate PR title`, `sca`, `sast`,
-   `secret-scan`, `misconfig-scan`, `iac-scan`), and force-pushes/deletions
-   of `main` are blocked.
+1. **Branch rules on `main`** — pushes to `main` require an open PR whose
+   status checks pass (`build`, `scan`, `Validate PR title`), and
+   force-pushes/deletions of `main` are blocked.
    Recreate in Settings → Rules → Rulesets if the account ever resets, or
    via the API call documented in the PR. The check names are matched by
    job id; keep CI job ids in sync with (or update) the ruleset.
