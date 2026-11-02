@@ -1,4 +1,4 @@
-"""Type vocabulary shared by ``.projenrc.py`` and ``projen_config.py``.
+"""Type vocabulary shared by ``.projenrc.py``, ``projen_config.py`` and ``constants.py``.
 
 This module declares types only. It never creates projen resources and
 holds no configuration values.
@@ -100,10 +100,21 @@ class WorkflowName(StrEnum):
     SECURITY = "security"
 
 
+class EnvironmentName(StrEnum):
+    """Name of a deployment environment: one AWS account in one region."""
+
+    DEV = "dev"
+
+
 class JobName(StrEnum):
-    """Identifier of a job within a workflow."""
+    """Identifier of a job within the managed workflows.
+
+    Values render as the YAML job keys; provide distinct values for
+    distinct jobs. A job may be referenced by more than one workflow.
+    """
 
     BUILD = "build"
+    CHECK = "check"
     DEPLOY = "deploy"
     SCAN = "scan"
 
@@ -125,7 +136,6 @@ class JobStepName(StrEnum):
     CDK_SYNTH = "CDK synth"
     CHECKOUT = "Checkout repository"
     DOCKERFILE_SCAN = "Dockerfile scan"
-    EXPORT_AWS_ACCOUNT_ID_AND_REGION = "Export AWS account ID and region"
     PYTHON_FORMAT_CHECK = "Python format check"
     GITHUB_ACTIONS_SCAN = "GitHub Actions scan"
     IAC_SCAN = "IaC scan"
@@ -156,16 +166,32 @@ class GitHubPermission(StrEnum):
     WRITE = "write"
 
 
+class DeploymentEnvironment(TypedDict):
+    """One deployment environment: a unique AWS account ID and region name.
+
+    Consumed by ``app.py`` (one stack per environment) and rendered 1:1 into
+    ``strategy.matrix.include`` of the GitHub jobs that assume the
+    environment's OIDC role and run ``cdk diff``/``cdk deploy``.
+    """
+
+    environment_name: EnvironmentName
+    aws_account_id: str
+    region_name: str
+
+
 class GitHubJobSpec(TypedDict):
     """Specification for a single job within a workflow.
 
-    ``steps`` renders into the YAML job in list order.
+    ``steps`` renders into the YAML job in list order. ``needs`` and
+    ``matrix`` render as the job's ``needs`` and ``strategy.matrix.include``.
     """
 
     id: JobName
     runs_on: list[str]
     permissions: dict[str, GitHubPermission]
     steps: list[JobStepName]
+    needs: NotRequired[list[JobName]]
+    matrix: NotRequired[list[DeploymentEnvironment]]
 
 
 class WorkflowTriggers(TypedDict):
@@ -188,12 +214,13 @@ class GitHubWorkflowSpec(TypedDict):
     ``on`` is a closed, event-keyed trigger mapping (``WorkflowTriggers``).
     Both type checkers verify every key against ``GithubWorkflow.on``'s
     keyword parameters, and projen still rejects unknown events at synth
-    time, so no extra validation is needed.
+    time, so no extra validation is needed. ``jobs`` references job specs
+    from ``GITHUB_JOBS`` by id.
     """
 
     name: WorkflowName
     on: WorkflowTriggers
-    jobs: list[GitHubJobSpec]
+    jobs: list[JobName]
 
 
 class GitHubJobStepSpec(TypedDict):

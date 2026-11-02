@@ -10,10 +10,16 @@ GitHub Actions (push to `main`).
   `projen_setup.py` assembles the project from the config. Edit the
   config, then run `npx projen` to re-synthesize every generated file.
   Generated files are read-only on disk — never hand-edit them.
+- **Deployment environments** also live in `projen_config.py`
+  (`DEPLOYMENT_ENVIRONMENTS`): one row per environment (a unique AWS
+  account ID + region; currently a single `dev` row). `app.py`
+  instantiates one stack per row (`aws-data-engineering-shenanigans-<env>`),
+  and the build and deploy workflows render the rows into their strategy
+  matrices, where they resolve the per-environment OIDC role and region
+  (deploy targets stacks via `cdk deploy "*-<env>"`).
 - `ruff.toml` and `ty.toml` are projen-managed raw files (projen has no
   dedicated components for them).
-- `constants.py` pins the AWS account and region; the build and deploy
-  workflows export them for OIDC.
+- `constants.py` pins the tool versions that `projen_config.py` references.
 - The security scanner policy files (`.checkov.yaml`, `trivy.yaml`,
   `.gitleaks.toml`, `uv.toml`, `zizmor.yml`, `.hadolint.yaml`,
   `osv-scanner.toml`) are projen-managed via `projen_config.py`
@@ -105,11 +111,14 @@ Manual one-time changes are now minimal; both were applied via the GitHub
 API as part of this PR (see the PR description for the exact payloads):
 
 1. **Branch rules on `main`** — pushes to `main` require an open PR whose
-   status checks pass (`build`, `scan`, `Validate PR title`), and
+   status checks pass (`check`, `build (dev, 925000840053,
+   eu-west-1)`, `scan`, `Validate PR title`), and
    force-pushes/deletions of `main` are blocked.
    Recreate in Settings → Rules → Rulesets if the account ever resets, or
-   via the API call documented in the PR. The check names are matched by
-   job id; keep CI job ids in sync with (or update) the ruleset.
+   via the API call documented in the PR. The `build` check name embeds
+   the environment's matrix row (GitHub joins a leg's row values with
+   commas) and one leg is produced per environment — when a new
+   environment row is added, append its leg's check name to this ruleset.
 2. **Native secret scanning** (complements the gitleaks job with
    near-real-time push prevention): Settings → Code security → enable
    *Secret scanning* and *Push protection* (Settings → Code security &
