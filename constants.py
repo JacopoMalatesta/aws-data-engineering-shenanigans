@@ -53,6 +53,9 @@ HADOLINT_LINUX_X86_64_SHA256: Final = (
     "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
 )
 
+PYTEST_COV_VERSION: Final = "7.1.0"
+PYTEST_DURATIONS_COUNT: Final = 10
+
 CHECKOUT_V4_PIN: Final = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
 SETUP_UV_V5_PIN: Final = "astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86"
 SETUP_NODE_V4_PIN: Final = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"

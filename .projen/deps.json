@@ -16,6 +16,11 @@
       "type": "devenv"
     },
     {
+      "name": "pytest-cov",
+      "version": "7.1.0",
+      "type": "devenv"
+    },
+    {
       "name": "ruff",
       "version": "0.17.2",
       "type": "devenv"

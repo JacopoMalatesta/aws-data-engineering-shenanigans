@@ -5,7 +5,7 @@ holds no configuration values.
 """
 
 from enum import StrEnum
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 type JsonValue = str | int | bool | list[JsonValue] | dict[str, JsonValue] | None
 
@@ -16,16 +16,34 @@ class FileType(StrEnum):
     JSON = "JSON"
     TOML = "TOML"
     YAML = "YAML"
+    TEXT = "TEXT"
     OTHER = "OTHER"
 
 
-class FileSpec(TypedDict):
-    """Specification for a projen-managed file."""
+class TextFileSpec(TypedDict):
+    """Plain-text projen-managed file, rendered verbatim from ``lines``.
+
+    Needed for formats whose exact text projen's serializers would alter
+    (projen's INI writer quotes values containing spaces, which pytest
+    rejects when parsing ``addopts``).
+    """
 
     file_path: str
-    file_type: FileType
+    file_type: Literal[FileType.TEXT]
+    lines: list[str]
+    marker: NotRequired[bool]
+
+
+class StandardFileSpec(TypedDict):
+    """Structure-backed projen-managed file rendered from ``obj``."""
+
+    file_path: str
+    file_type: Literal[FileType.JSON, FileType.TOML, FileType.YAML, FileType.OTHER]
     obj: dict[str, JsonValue]
     marker: NotRequired[bool]
+
+
+type FileSpec = StandardFileSpec | TextFileSpec
 
 
 class TaskName(StrEnum):
