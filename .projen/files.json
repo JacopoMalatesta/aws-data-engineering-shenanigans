@@ -19,6 +19,7 @@
     "osv-scanner.toml",
     "pyproject.toml",
     "pyrightconfig.json",
+    "pytest.ini",
     "ruff.toml",
     "trivy.yaml",
     "ty.toml",

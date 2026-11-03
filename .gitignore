@@ -89,6 +89,7 @@ cython_debug/
 tmp/
 !/ruff.toml
 !/ty.toml
+!/pytest.ini
 !/pyrightconfig.json
 !/.pre-commit-config.yaml
 !/trivy.yaml
