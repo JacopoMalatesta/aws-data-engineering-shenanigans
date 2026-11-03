@@ -1,9 +1,11 @@
-"""Project configuration data consumed by ``.projenrc.py``.
+"""Project configuration data consumed by ``.projenrc.py`` and ``app.py``.
 
 This module stores configuration only. It never creates projen resources.
 """
 
 from typing import Final, TypedDict, cast
+
+from aws_cdk.region_info import RegionInfo
 
 from constants import (
     AIRFLOW_RUFF_RULESET,
@@ -11,7 +13,6 @@ from constants import (
     CHECKOUT_V4_PIN,
     CHECKOV_VERSION,
     DJANGO_RUFF_RULESET,
-    EXPORT_AWS_ACCOUNT_ID_AND_REGION,
     FASTAPI_RUFF_RULESET,
     GITLEAKS_LINUX_X64_TARBALL_SHA256,
     GITLEAKS_VERSION,
@@ -37,8 +38,11 @@ from constants import (
     ZIZMOR_VERSION,
 )
 from projen_types import (
+    DeploymentEnvironment,
+    EnvironmentName,
     FileSpec,
     FileType,
+    GitHubJobSpec,
     GitHubJobStepSpec,
     GitHubPermission,
     GitHubWorkflowSpec,
@@ -411,6 +415,14 @@ PROJECT_FILES: Final[list[FileSpec]] = [
     },
 ]
 
+DEPLOYMENT_ENVIRONMENTS: Final[list[DeploymentEnvironment]] = [
+    {
+        "environment_name": EnvironmentName.DEV,
+        "aws_account_id": "925000840053",
+        "region_name": RegionInfo.get("eu-west-1").name,
+    },
+]
+
 CI_RUNNERS: Final = ["ubuntu-latest"]
 
 GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
@@ -418,11 +430,14 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
         "name": JobStepName.AWS_CREDENTIALS,
         "uses": AWS_CREDENTIALS_V4_PIN,
         "with_": {
-            "role-to-assume": "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy",
-            "aws-region": "${{ env.AWS_REGION }}",
+            "role-to-assume": "arn:aws:iam::${{ matrix.aws_account_id }}:role/github-actions-deploy",
+            "aws-region": "${{ matrix.region_name }}",
         },
     },
-    {"name": JobStepName.CDK_DEPLOY, "run": f"{PROJEN_RUN} {TaskName.CDK_DEPLOY}"},
+    {
+        "name": JobStepName.CDK_DEPLOY,
+        "run": f'{PROJEN_RUN} deploy "*-${{{{ matrix.environment_name }}}}"',
+    },
     {"name": JobStepName.CDK_DIFF, "run": f"{PROJEN_RUN} {TaskName.CDK_DIFF}"},
     {
         "name": JobStepName.CDK_DIFF_CAPTURE,
@@ -448,10 +463,6 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
             "hadolint --version\n"
             f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
         ),
-    },
-    {
-        "name": JobStepName.EXPORT_AWS_ACCOUNT_ID_AND_REGION,
-        "run": EXPORT_AWS_ACCOUNT_ID_AND_REGION,
     },
     {
         "name": JobStepName.PYTHON_FORMAT_CHECK,
@@ -590,99 +601,108 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
     {"name": JobStepName.WAIT_FOR_SCANS, "wait_all": True},
 ]
 
+GITHUB_JOBS: Final[list[GitHubJobSpec]] = [
+    {
+        "id": JobName.CHECK,
+        "runs_on": CI_RUNNERS,
+        "permissions": {"contents": GitHubPermission.READ},
+        "steps": [
+            JobStepName.CHECKOUT,
+            JobStepName.INSTALL_UV,
+            JobStepName.INSTALL_NODE,
+            JobStepName.INSTALL_PYTHON_DEPENDENCIES,
+            JobStepName.INSTALL_PROJEN_CLI,
+            JobStepName.REGENERATE_PROJEN_FILES,
+            JobStepName.PYTHON_LINT,
+            JobStepName.PYTHON_FORMAT_CHECK,
+            JobStepName.PYTHON_TYPECHECK,
+            JobStepName.PYTHON_STATIC_ANALYSIS,
+            JobStepName.PYTHON_UNIT_TESTS,
+            JobStepName.PYTHON_PACKAGE,
+        ],
+    },
+    {
+        "id": JobName.BUILD,
+        "runs_on": CI_RUNNERS,
+        "needs": [JobName.CHECK],
+        "matrix": DEPLOYMENT_ENVIRONMENTS,
+        "permissions": {
+            "contents": GitHubPermission.READ,
+            "id_token": GitHubPermission.WRITE,
+            "pull_requests": GitHubPermission.WRITE,
+        },
+        "steps": [
+            JobStepName.CHECKOUT,
+            JobStepName.INSTALL_UV,
+            JobStepName.INSTALL_NODE,
+            JobStepName.INSTALL_CDK_CLI,
+            JobStepName.INSTALL_PYTHON_DEPENDENCIES,
+            JobStepName.INSTALL_PROJEN_CLI,
+            JobStepName.AWS_CREDENTIALS,
+            JobStepName.CDK_SYNTH,
+            JobStepName.CDK_DIFF_CAPTURE,
+            JobStepName.POST_CDK_DIFF,
+        ],
+    },
+    {
+        "id": JobName.DEPLOY,
+        "runs_on": CI_RUNNERS,
+        "needs": [JobName.CHECK],
+        "matrix": DEPLOYMENT_ENVIRONMENTS,
+        "permissions": {
+            "contents": GitHubPermission.READ,
+            "id_token": GitHubPermission.WRITE,
+        },
+        "steps": [
+            JobStepName.CHECKOUT,
+            JobStepName.INSTALL_UV,
+            JobStepName.INSTALL_NODE,
+            JobStepName.INSTALL_CDK_CLI,
+            JobStepName.INSTALL_PYTHON_DEPENDENCIES,
+            JobStepName.INSTALL_PROJEN_CLI,
+            JobStepName.AWS_CREDENTIALS,
+            JobStepName.CDK_DIFF,
+            JobStepName.CDK_DEPLOY,
+        ],
+    },
+    {
+        "id": JobName.SCAN,
+        "runs_on": CI_RUNNERS,
+        "permissions": {"contents": GitHubPermission.READ},
+        "steps": [
+            JobStepName.CHECKOUT,
+            JobStepName.INSTALL_UV,
+            JobStepName.INSTALL_NODE,
+            JobStepName.INSTALL_CDK_CLI,
+            JobStepName.INSTALL_PYTHON_DEPENDENCIES,
+            JobStepName.INSTALL_PROJEN_CLI,
+            JobStepName.SECRET_SCAN,
+            JobStepName.SAST_SCAN,
+            JobStepName.MISCONFIG_SCAN,
+            JobStepName.SCA_PYTHON,
+            JobStepName.IAC_SCAN,
+            JobStepName.GITHUB_ACTIONS_SCAN,
+            JobStepName.SCA_MULTI_LANGUAGE,
+            JobStepName.DOCKERFILE_SCAN,
+            JobStepName.WAIT_FOR_SCANS,
+        ],
+    },
+]
+
 GITHUB_WORKFLOWS: Final[list[GitHubWorkflowSpec]] = [
     {
         "name": WorkflowName.BUILD,
         "on": {"pull_request": {}},
-        "jobs": [
-            {
-                "id": JobName.BUILD,
-                "runs_on": CI_RUNNERS,
-                "permissions": {
-                    "contents": GitHubPermission.READ,
-                    "id_token": GitHubPermission.WRITE,
-                    "pull_requests": GitHubPermission.WRITE,
-                },
-                "steps": [
-                    JobStepName.CHECKOUT,
-                    JobStepName.INSTALL_UV,
-                    JobStepName.INSTALL_NODE,
-                    JobStepName.INSTALL_CDK_CLI,
-                    JobStepName.INSTALL_PYTHON_DEPENDENCIES,
-                    JobStepName.INSTALL_PROJEN_CLI,
-                    JobStepName.REGENERATE_PROJEN_FILES,
-                    JobStepName.PYTHON_LINT,
-                    JobStepName.PYTHON_FORMAT_CHECK,
-                    JobStepName.PYTHON_TYPECHECK,
-                    JobStepName.PYTHON_STATIC_ANALYSIS,
-                    JobStepName.PYTHON_UNIT_TESTS,
-                    JobStepName.EXPORT_AWS_ACCOUNT_ID_AND_REGION,
-                    JobStepName.AWS_CREDENTIALS,
-                    JobStepName.CDK_SYNTH,
-                    JobStepName.CDK_DIFF_CAPTURE,
-                    JobStepName.POST_CDK_DIFF,
-                    JobStepName.PYTHON_PACKAGE,
-                ],
-            },
-        ],
+        "jobs": [JobName.CHECK, JobName.BUILD],
     },
     {
         "name": WorkflowName.DEPLOY,
         "on": {"push": {"branches": ["main"]}, "workflow_dispatch": {}},
-        "jobs": [
-            {
-                "id": JobName.DEPLOY,
-                "runs_on": CI_RUNNERS,
-                "permissions": {
-                    "id_token": GitHubPermission.WRITE,
-                    "contents": GitHubPermission.READ,
-                },
-                "steps": [
-                    JobStepName.CHECKOUT,
-                    JobStepName.INSTALL_UV,
-                    JobStepName.INSTALL_NODE,
-                    JobStepName.INSTALL_CDK_CLI,
-                    JobStepName.INSTALL_PYTHON_DEPENDENCIES,
-                    JobStepName.INSTALL_PROJEN_CLI,
-                    JobStepName.PYTHON_LINT,
-                    JobStepName.PYTHON_FORMAT_CHECK,
-                    JobStepName.PYTHON_TYPECHECK,
-                    JobStepName.PYTHON_STATIC_ANALYSIS,
-                    JobStepName.PYTHON_UNIT_TESTS,
-                    JobStepName.EXPORT_AWS_ACCOUNT_ID_AND_REGION,
-                    JobStepName.AWS_CREDENTIALS,
-                    JobStepName.CDK_DIFF,
-                    JobStepName.CDK_DEPLOY,
-                ],
-            },
-        ],
+        "jobs": [JobName.CHECK, JobName.DEPLOY],
     },
     {
         "name": WorkflowName.SECURITY,
         "on": {"pull_request": {}, "workflow_dispatch": {}},
-        "jobs": [
-            {
-                "id": JobName.SCAN,
-                "runs_on": CI_RUNNERS,
-                "permissions": {"contents": GitHubPermission.READ},
-                "steps": [
-                    JobStepName.CHECKOUT,
-                    JobStepName.INSTALL_UV,
-                    JobStepName.INSTALL_NODE,
-                    JobStepName.INSTALL_CDK_CLI,
-                    JobStepName.INSTALL_PYTHON_DEPENDENCIES,
-                    JobStepName.INSTALL_PROJEN_CLI,
-                    JobStepName.SECRET_SCAN,
-                    JobStepName.SAST_SCAN,
-                    JobStepName.MISCONFIG_SCAN,
-                    JobStepName.SCA_PYTHON,
-                    JobStepName.IAC_SCAN,
-                    JobStepName.GITHUB_ACTIONS_SCAN,
-                    JobStepName.SCA_MULTI_LANGUAGE,
-                    JobStepName.DOCKERFILE_SCAN,
-                    JobStepName.WAIT_FOR_SCANS,
-                ],
-            },
-        ],
+        "jobs": [JobName.SCAN],
     },
 ]

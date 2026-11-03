@@ -1,26 +1,16 @@
 """Single source of truth for repo-wide constants.
 
-Environment, tool and workflow constants, plus the shell snippets that the
-CI workflows run. Consumed by ``.projenrc.py``, ``projen_config.py`` and
-``app.py``, and read by the deploy workflow at runtime.
+Tool and workflow constants, plus the shell snippets that the CI
+workflows run. Consumed by ``.projenrc.py`` and ``projen_config.py``.
 """
 
 from typing import Final
-
-AWS_ACCOUNT_ID: Final = "925000840053"
-AWS_REGION: Final = "eu-west-1"
 
 PYTHON_VERSION: Final = "3.13"
 NODE_VERSION: Final = "24"
 PROJEN_RUN: Final = "npx projen@0.104.17"
 
-EXPORT_AWS_ACCOUNT_ID_AND_REGION: Final[
-    str
-] = """echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
-echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
-"""
-
-POST_CDK_DIFF: Final[str] = """\
+POST_CDK_DIFF: Final = """\
 DIFF_BODY_FILE=cdk-diff-comment.md
 {
   echo '<!-- cdk-diff -->'

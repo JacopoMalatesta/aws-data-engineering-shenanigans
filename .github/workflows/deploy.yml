@@ -7,7 +7,55 @@ on:
       - main
   workflow_dispatch: {}
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        id: checkout_repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install uv
+        id: install_uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86
+        with:
+          python-version: "3.13"
+      - name: Install Node
+        id: install_node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+      - name: Install Python dependencies
+        id: install_python_dependencies
+        run: uv sync --frozen
+      - name: Install projen CLI
+        id: install_projen_cli
+        run: npm install -g projen@0.104.17
+      - name: Regenerate projen files
+        id: regenerate_projen_files
+        run: npx projen@0.104.17 --no-post --debug
+      - name: Python lint
+        id: python_lint
+        run: npx projen@0.104.17 lint
+      - name: Python format check
+        id: python_format_check
+        run: npx projen@0.104.17 format:check
+      - name: Python typecheck
+        id: python_typecheck
+        run: npx projen@0.104.17 typecheck
+      - name: Python static analysis
+        id: python_static_analysis
+        run: npx projen@0.104.17 static-analysis
+      - name: Python unit tests
+        id: python_unit_tests
+        run: npx projen@0.104.17 test
+      - name: Package Python code
+        id: package_python_code
+        run: npx projen@0.104.17 package
   deploy:
+    needs: check
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,35 +85,21 @@ jobs:
       - name: Install projen CLI
         id: install_projen_cli
         run: npm install -g projen@0.104.17
-      - name: Python lint
-        id: python_lint
-        run: npx projen@0.104.17 lint
-      - name: Python format check
-        id: python_format_check
-        run: npx projen@0.104.17 format:check
-      - name: Python typecheck
-        id: python_typecheck
-        run: npx projen@0.104.17 typecheck
-      - name: Python static analysis
-        id: python_static_analysis
-        run: npx projen@0.104.17 static-analysis
-      - name: Python unit tests
-        id: python_unit_tests
-        run: npx projen@0.104.17 test
-      - name: Export AWS account ID and region
-        id: export_aws_account_id_and_region
-        run: |
-          echo "AWS_ACCOUNT_ID=$(uv run python -c 'from constants import AWS_ACCOUNT_ID; print(AWS_ACCOUNT_ID)')" >> "$GITHUB_ENV"
-          echo "AWS_REGION=$(uv run python -c 'from constants import AWS_REGION; print(AWS_REGION)')" >> "$GITHUB_ENV"
       - name: AWS credentials via OIDC
         id: aws_credentials_via_oidc
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ matrix.aws_account_id }}:role/github-actions-deploy
+          aws-region: ${{ matrix.region_name }}
       - name: CDK diff
         id: cdk_diff
         run: npx projen@0.104.17 diff
       - name: CDK deploy
         id: cdk_deploy
-        run: npx projen@0.104.17 deploy
+        run: npx projen@0.104.17 deploy "*-${{ matrix.environment_name }}"
+    strategy:
+      matrix:
+        include:
+          - environment_name: dev
+            aws_account_id: "925000840053"
+            region_name: eu-west-1

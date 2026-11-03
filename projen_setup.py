@@ -5,12 +5,18 @@ The public entry point is :func:`set_up_project`; everything else is
 private by convention because the only caller is that entry shim.
 """
 
-from typing import Final
+from typing import TYPE_CHECKING, Final, cast
 
 from projen import JsonFile, ObjectFile, Task, TomlFile, YamlFile
 from projen.awscdk import AwsCdkPythonApp
 from projen.github import GitHubOptions, PullRequestLintOptions, SemanticTitleOptions
-from projen.github.workflows import Job, JobPermission, JobStep
+from projen.github.workflows import (
+    Job,
+    JobMatrix,
+    JobPermission,
+    JobStep,
+    JobStrategy,
+)
 from projen.vscode import VsCode
 
 from constants import PYTHON_VERSION
@@ -18,6 +24,7 @@ from projen_config import (
     DEV_DEPS,
     GIT_IGNORE_PATTERNS,
     GITHUB_JOB_STEPS,
+    GITHUB_JOBS,
     GITHUB_WORKFLOWS,
     PROJECT_FILES,
     PROJECT_SPEC,
@@ -26,7 +33,10 @@ from projen_config import (
     VSCODE_EXTENSIONS,
     VSCODE_SETTINGS,
 )
-from projen_types import FileType, GitHubPermission, JobStepName, TaskName
+from projen_types import FileType, GitHubPermission, JobName, JobStepName, TaskName
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class UndeclaredSubtaskError(KeyError):
@@ -35,6 +45,10 @@ class UndeclaredSubtaskError(KeyError):
 
 class UndeclaredStepError(KeyError):
     """A ``GitHubJobSpec`` references a step absent from ``GITHUB_JOB_STEPS``."""
+
+
+class UndeclaredJobError(KeyError):
+    """A ``GitHubWorkflowSpec`` references a job absent from ``GITHUB_JOBS``."""
 
 
 FILE_CLASSES: Final[dict[FileType, type[ObjectFile]]] = {
@@ -153,11 +167,12 @@ def _configure_editor_tooling(project: AwsCdkPythonApp) -> None:
 
 
 def _add_github_workflows(project: AwsCdkPythonApp) -> None:
-    """Register the configured workflows, jobs, and addressable steps.
+    """Register the configured workflows and their catalog-defined jobs.
 
     Raises:
         RuntimeError: If GitHub integration is disabled for the project.
         UndeclaredStepError: If a job references an undeclared step.
+        UndeclaredJobError: If a workflow references an undeclared job.
     """
     github = project.github
     if github is None:
@@ -168,28 +183,51 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
         step_spec["name"]: JobStep(**step_spec) for step_spec in GITHUB_JOB_STEPS
     }
 
+    jobs_by_name: Final[dict[JobName, Job]] = {}
+    for job_spec in GITHUB_JOBS:
+        job_steps: list[JobStep] = []
+        for step_name in job_spec["steps"]:
+            step = steps_by_name.get(step_name)
+            if step is None:
+                msg = (
+                    f"job '{job_spec['id']}' references undeclared step "
+                    f"'{step_name}'; declare every step in GITHUB_JOB_STEPS"
+                )
+                raise UndeclaredStepError(msg)
+            job_steps.append(step)
+
+        matrix_entries = job_spec.get("matrix")
+        if matrix_entries is None:
+            strategy = None
+        else:
+            strategy = JobStrategy(
+                matrix=JobMatrix(
+                    # Sound cast: the entries serialize as plain string
+                    # mappings; jsii's JobMatrix only accepts those.
+                    include=cast("list[Mapping[str, str]]", matrix_entries)
+                )
+            )
+        jobs_by_name[job_spec["id"]] = Job(
+            runs_on=job_spec["runs_on"],
+            permissions={
+                scope: PERMISSION_CLASSES[level]
+                for scope, level in job_spec["permissions"].items()
+            },
+            steps=job_steps,
+            needs=job_spec.get("needs"),
+            strategy=strategy,
+        )
+
     for workflow_spec in GITHUB_WORKFLOWS:
         workflow = github.add_workflow(workflow_spec["name"])
         workflow.on(**workflow_spec["on"])
-        for job_spec in workflow_spec["jobs"]:
-            job_steps: list[JobStep] = []
-            for step_name in job_spec["steps"]:
-                step = steps_by_name.get(step_name)
-                if step is None:
-                    msg = (
-                        f"job '{job_spec['id']}' references undeclared step "
-                        f"'{step_name}'; declare every step in GITHUB_JOB_STEPS"
-                    )
-                    raise UndeclaredStepError(msg)
-                job_steps.append(step)
-            workflow.add_job(
-                job_spec["id"],
-                Job(
-                    runs_on=job_spec["runs_on"],
-                    permissions={
-                        scope: PERMISSION_CLASSES[level]
-                        for scope, level in job_spec["permissions"].items()
-                    },
-                    steps=job_steps,
-                ),
-            )
+        for job_name in workflow_spec["jobs"]:
+            job = jobs_by_name.get(job_name)
+            if job is None:
+                msg = (
+                    f"workflow '{workflow_spec['name']}' references an "
+                    f"undeclared job '{job_name}'; declare it in "
+                    "GITHUB_JOBS"
+                )
+                raise UndeclaredJobError(msg)
+            workflow.add_job(job_name, job)
