@@ -20,9 +20,5 @@
 /cdk.json linguist-generated
 /osv-scanner.toml linguist-generated
 /pyproject.toml linguist-generated
-/pyrightconfig.json linguist-generated
-/ruff.toml linguist-generated
 /trivy.yaml linguist-generated
-/ty.toml linguist-generated
-/uv.toml linguist-generated
 /zizmor.yml linguist-generated

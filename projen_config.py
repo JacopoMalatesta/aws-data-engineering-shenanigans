@@ -149,6 +149,50 @@ RUFF_PER_FILE_IGNORES: Final[dict[str, list[str]]] = {
     "**/__init__.py": ["undocumented-public-package"],
 }
 
+PYPROJECT_TOOL_SECTIONS: Final = {
+    "ruff": {
+        "target-version": f"py{PYTHON_VERSION.replace('.', '')}",
+        "line-length": 88,
+        "lint": {
+            "preview": True,
+            "select": ["ALL"],
+            "ignore": RUFF_IGNORE_RULES,
+            "pydocstyle": {"convention": "google"},
+            "per-file-ignores": RUFF_PER_FILE_IGNORES,
+        },
+    },
+    "ty": {
+        "rules": {
+            "blanket-ignore-comment": "error",
+            "dynamic-function-decorator-return": "error",
+            "missing-type-argument": "error",
+            "possibly-unresolved-reference": "warn",
+            "unsound-assignment": "error",
+            "unsound-return-statement": "error",
+            "unsound-yield": "error",
+            "unsupported-dynamic-base": "warn",
+        },
+        "analysis": {
+            "strict-equality-semantics": True,
+            "strict-generic-narrowing": True,
+        },
+    },
+    "basedpyright": {
+        "pythonVersion": PYTHON_VERSION,
+        "pythonPlatform": "All",
+        "typeCheckingMode": "all",
+        "enableBasedFeatures": True,
+        "failOnWarnings": True,
+        "exclude": [
+            "cdk.out",
+            "dist",
+            ".venv",
+            "node_modules",
+            "**/__pycache__",
+        ],
+    },
+}
+
 PROJEN_TASKS: Final[list[ProjenTaskSpec]] = [
     {
         "name": TaskName.PYTHON_LINT,
@@ -294,63 +338,6 @@ PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
 
 PROJECT_FILES: Final[list[FileSpec]] = [
     {
-        "file_path": "ruff.toml",
-        "file_type": FileType.TOML,
-        "obj": {
-            "target-version": f"py{PYTHON_VERSION.replace('.', '')}",
-            "line-length": 88,
-            "lint": cast(
-                "JsonValue",
-                {
-                    "preview": True,
-                    "select": ["ALL"],
-                    "ignore": RUFF_IGNORE_RULES,
-                    "pydocstyle": {"convention": "google"},
-                    "per-file-ignores": RUFF_PER_FILE_IGNORES,
-                },
-            ),
-        },
-    },
-    {
-        "file_path": "ty.toml",
-        "file_type": FileType.TOML,
-        "obj": {
-            "rules": {
-                "blanket-ignore-comment": "error",
-                "dynamic-function-decorator-return": "error",
-                "missing-type-argument": "error",
-                "possibly-unresolved-reference": "warn",
-                "unsound-assignment": "error",
-                "unsound-return-statement": "error",
-                "unsound-yield": "error",
-                "unsupported-dynamic-base": "warn",
-            },
-            "analysis": {
-                "strict-equality-semantics": True,
-                "strict-generic-narrowing": True,
-            },
-        },
-    },
-    {
-        "file_path": "pyrightconfig.json",
-        "file_type": FileType.JSON,
-        "marker": False,
-        "obj": {
-            "pythonVersion": PYTHON_VERSION,
-            "pythonPlatform": "All",
-            "typeCheckingMode": "all",
-            "enableBasedFeatures": True,
-            "failOnWarnings": True,
-            "exclude": [
-                "cdk.out",
-                "dist",
-                ".venv",
-                "node_modules",
-                "**/__pycache__",
-            ],
-        },
-    },
-    {
         "file_path": ".pre-commit-config.yaml",
         "file_type": FileType.YAML,
         "obj": {
@@ -380,11 +367,6 @@ PROJECT_FILES: Final[list[FileSpec]] = [
             "title": "aws-data-engineering-shenanigans gitleaks policy",
             "extend": {"useDefault": True},
         },
-    },
-    {
-        "file_path": "uv.toml",
-        "file_type": FileType.TOML,
-        "obj": {"audit": {"ignore": []}},
     },
     {
         "file_path": "zizmor.yml",
