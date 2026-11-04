@@ -29,6 +29,7 @@ from projen_config import (
     PROJECT_FILES,
     PROJECT_SPEC,
     PROJEN_TASKS,
+    PYPROJECT_TOOL_SECTIONS,
     SEMANTIC_TITLE_TYPES,
     VSCODE_EXTENSIONS,
     VSCODE_SETTINGS,
@@ -51,6 +52,10 @@ class UndeclaredJobError(KeyError):
     """A ``GitHubWorkflowSpec`` references a job absent from ``GITHUB_JOBS``."""
 
 
+class MissingPyprojectTomlError(KeyError):
+    """The ``pyproject.toml`` file component is absent from the project."""
+
+
 FILE_CLASSES: Final[dict[FileType, type[ObjectFile]]] = {
     FileType.JSON: JsonFile,
     FileType.TOML: TomlFile,
@@ -67,6 +72,7 @@ PERMISSION_CLASSES: Final[dict[GitHubPermission, JobPermission]] = {
 def set_up_project() -> None:
     """Assemble the full project from ``projen_config.py`` and synth it."""
     project = _create_project()
+    _configure_pyproject(project)
     _add_project_files(project)
     _add_tasks(project)
     _configure_editor_tooling(project)
@@ -107,6 +113,27 @@ def _create_project() -> AwsCdkPythonApp:
             ),
         ),
     )
+
+
+def _configure_pyproject(project: AwsCdkPythonApp) -> None:
+    """Inject ``PYPROJECT_TOOL_SECTIONS`` into the Uv-managed pyproject.toml.
+
+    ``add_override`` merges on top of projen's serialized pyproject schema,
+    so tool sections that projen does not whitelist (e.g. ``basedpyright``)
+    still render into the generated file.
+
+    Raises:
+        MissingPyprojectTomlError: If the pyproject.toml component is missing.
+    """
+    pyproject = project.try_find_object_file("pyproject.toml")
+    if pyproject is None:
+        msg = (
+            "pyproject.toml should exist for uv-based projects; the Uv "
+            "component created by AwsCdkPythonApp is missing or disabled"
+        )
+        raise MissingPyprojectTomlError(msg)
+    for name, section in PYPROJECT_TOOL_SECTIONS.items():
+        pyproject.add_override(f"tool.{name}", section)
 
 
 def _add_project_files(project: AwsCdkPythonApp) -> None:

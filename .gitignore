@@ -87,13 +87,9 @@ cython_debug/
 *.swp
 .opencode/
 tmp/
-!/ruff.toml
-!/ty.toml
-!/pyrightconfig.json
 !/.pre-commit-config.yaml
 !/trivy.yaml
 !/.gitleaks.toml
-!/uv.toml
 !/zizmor.yml
 !/.hadolint.yaml
 !/osv-scanner.toml
