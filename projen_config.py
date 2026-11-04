@@ -86,6 +86,7 @@ VSCODE_SETTINGS: Final[dict[str, JsonValue]] = {
 DEV_DEPS: Final = [
     "basedpyright@1.40.2",
     "pre-commit@4.6.2",
+    "pytest-cov@7.1.0",
     "ruff@0.17.2",
     "ty@0.0.92",
 ]
@@ -190,6 +191,14 @@ PYPROJECT_TOOL_SECTIONS: Final = {
             "node_modules",
             "**/__pycache__",
         ],
+    },
+    "pytest.ini_options": {
+        "addopts": (
+            "-vv -ra --durations=10 "
+            f"--cov={PROJECT_SPEC['module_name']} "
+            "--cov-report=term-missing"
+        ),
+        "testpaths": ["tests"],
     },
 }
 
