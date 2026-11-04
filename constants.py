@@ -53,11 +53,11 @@ HADOLINT_LINUX_X86_64_SHA256: Final = (
     "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
 )
 
-CHECKOUT_V4_PIN: Final = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
-SETUP_UV_V5_PIN: Final = "astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86"
-SETUP_NODE_V4_PIN: Final = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020"
-AWS_CREDENTIALS_V4_PIN: Final = (
-    "aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a"
+CHECKOUT_V7_PIN: Final = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+SETUP_UV_V10_PIN: Final = "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
+SETUP_NODE_V7_PIN: Final = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
+AWS_CREDENTIALS_V6_PIN: Final = (
+    "aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd"
 )
 
 # flake8-plugin ruleset codes for the ruff ignore list.

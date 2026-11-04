@@ -9,8 +9,8 @@ from aws_cdk.region_info import RegionInfo
 
 from constants import (
     AIRFLOW_RUFF_RULESET,
-    AWS_CREDENTIALS_V4_PIN,
-    CHECKOUT_V4_PIN,
+    AWS_CREDENTIALS_V6_PIN,
+    CHECKOUT_V7_PIN,
     CHECKOV_VERSION,
     DJANGO_RUFF_RULESET,
     FASTAPI_RUFF_RULESET,
@@ -29,8 +29,8 @@ from constants import (
     PRE_COMMIT_LANGUAGE_UNSUPPORTED,
     PROJEN_RUN,
     PYTHON_VERSION,
-    SETUP_NODE_V4_PIN,
-    SETUP_UV_V5_PIN,
+    SETUP_NODE_V7_PIN,
+    SETUP_UV_V10_PIN,
     TRIVY_LINUX_64BIT_TARBALL_SHA256,
     TRIVY_VERSION,
     VIRTUAL_ENV_BINARY_DIR,
@@ -410,7 +410,7 @@ CI_RUNNERS: Final = ["ubuntu-latest"]
 GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
     {
         "name": JobStepName.AWS_CREDENTIALS,
-        "uses": AWS_CREDENTIALS_V4_PIN,
+        "uses": AWS_CREDENTIALS_V6_PIN,
         "with_": {
             "role-to-assume": "arn:aws:iam::${{ matrix.aws_account_id }}:role/github-actions-deploy",
             "aws-region": "${{ matrix.region_name }}",
@@ -428,7 +428,7 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
     {"name": JobStepName.CDK_SYNTH, "run": f"{PROJEN_RUN} {TaskName.CDK_SYNTH}"},
     {
         "name": JobStepName.CHECKOUT,
-        "uses": CHECKOUT_V4_PIN,
+        "uses": CHECKOUT_V7_PIN,
         "with_": {"persist-credentials": False},
     },
     {
@@ -563,12 +563,12 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
     },
     {
         "name": JobStepName.INSTALL_NODE,
-        "uses": SETUP_NODE_V4_PIN,
+        "uses": SETUP_NODE_V7_PIN,
         "with_": {"node-version": NODE_VERSION},
     },
     {
         "name": JobStepName.INSTALL_UV,
-        "uses": SETUP_UV_V5_PIN,
+        "uses": SETUP_UV_V10_PIN,
         "with_": {"python-version": PYTHON_VERSION},
     },
     {
