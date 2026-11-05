@@ -20,9 +20,12 @@ class FileType(StrEnum):
 
 
 class FileSpec(TypedDict):
-    """Specification for a projen-managed file."""
+    """Specification for a projen-managed file.
 
-    file_path: str
+    ``PROJECT_FILES`` keys are the ``file_path``; ``file_type`` selects
+    the projen file class and ``obj`` is the serialized document.
+    """
+
     file_type: FileType
     obj: dict[str, JsonValue]
     marker: NotRequired[bool]
@@ -66,14 +69,14 @@ class TaskName(StrEnum):
 class ProjenTaskSpec(TypedDict):
     """Specification for a projen task.
 
-    ``exec`` and ``spawns`` are optional. ``spawns`` lists the tasks passed
-    to ``Task.spawn``, in spawn order; ``Task.spawn`` needs the spawned task
-    to already exist when it is called, so every spawned task must be
-    declared in ``PROJEN_TASKS`` before the task that spawns it. A task may
-    carry both an ``exec`` and ``spawns``.
+    ``PROJEN_TASKS`` keys are the task names. ``exec`` and ``spawns``
+    are optional. ``spawns`` lists the task names passed to
+    ``Task.spawn``, in spawn order; subtasks resolve in a second pass
+    after every spec is registered, so config order is free and a
+    subtask may be any project task, declared in ``PROJEN_TASKS`` or a
+    projen built-in. A task may carry both an ``exec`` and ``spawns``.
     """
 
-    name: TaskName
     description: str
     exec: NotRequired[str]
     spawns: NotRequired[list[TaskName]]
@@ -182,11 +185,12 @@ class DeploymentEnvironment(TypedDict):
 class GitHubJobSpec(TypedDict):
     """Specification for a single job within a workflow.
 
-    ``steps`` renders into the YAML job in list order. ``needs`` and
-    ``matrix`` render as the job's ``needs`` and ``strategy.matrix.include``.
+    ``GITHUB_JOBS`` keys are the job ids and double as the YAML job
+    names. ``steps`` renders into the YAML job in list order. ``needs``
+    and ``matrix`` render as the job's ``needs`` and
+    ``strategy.matrix.include``.
     """
 
-    id: JobName
     runs_on: list[str]
     permissions: dict[str, GitHubPermission]
     steps: list[JobStepName]
@@ -211,14 +215,14 @@ class WorkflowTriggers(TypedDict):
 class GitHubWorkflowSpec(TypedDict):
     """Specification for one GitHub Actions workflow file.
 
-    ``on`` is a closed, event-keyed trigger mapping (``WorkflowTriggers``).
+    ``GITHUB_WORKFLOWS`` keys are the workflow names. ``on`` is a
+    closed, event-keyed trigger mapping (``WorkflowTriggers``).
     Both type checkers verify every key against ``GithubWorkflow.on``'s
     keyword parameters, and projen still rejects unknown events at synth
-    time, so no extra validation is needed. ``jobs`` references job specs
-    from ``GITHUB_JOBS`` by id.
+    time, so no extra validation is needed. ``jobs`` lists ``GITHUB_JOBS``
+    keys.
     """
 
-    name: WorkflowName
     on: WorkflowTriggers
     jobs: list[JobName]
 
@@ -226,12 +230,12 @@ class GitHubWorkflowSpec(TypedDict):
 class GitHubJobStepSpec(TypedDict):
     """Specification for a registered GitHub Actions job step.
 
-    ``name`` is the lookup key in ``STEPS_BY_NAME`` and doubles as the YAML
-    display label (via the ``JobStepName`` value). All other fields mirror
-    ``JobStep`` keyword arguments and are splatted as-is.
+    ``GITHUB_JOB_STEPS`` keys are the YAML ``name`` labels (via the
+    ``JobStepName`` value) and double as lookup keys; setup passes the
+    key explicitly as ``JobStep``'s ``name`` argument. All other fields
+    mirror ``JobStep`` keyword arguments and are splatted as-is.
     """
 
-    name: JobStepName
     run: NotRequired[str]
     uses: NotRequired[str]
     with_: NotRequired[dict[str, JsonValue]]

@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 
 class UndeclaredSubtaskError(KeyError):
-    """A ``ProjenTaskSpec`` spawns a task with no declared spec (yet)."""
+    """A ``ProjenTaskSpec`` spawns a task neither declared nor built-in."""
 
 
 class UndeclaredStepError(KeyError):
@@ -141,40 +141,44 @@ def _add_project_files(project: AwsCdkPythonApp) -> None:
     for ignore_pattern in GIT_IGNORE_PATTERNS:
         project.add_git_ignore(ignore_pattern)
 
-    for file_spec in PROJECT_FILES:
+    for file_path, file_spec in PROJECT_FILES.items():
         _ = FILE_CLASSES[file_spec["file_type"]](
             scope=project,
-            file_path=file_spec["file_path"],
+            file_path=file_path,
             obj=file_spec["obj"],
             marker=file_spec.get("marker"),
         )
 
 
 def _add_tasks(project: AwsCdkPythonApp) -> None:
-    """Declare ``PROJEN_TASKS`` and wire ``pre-commit install``.
+    """Declare ``PROJEN_TASKS``, resolve spawns and wire pre-commit.
 
-    ``Task.spawn`` needs the spawned task to exist when it is called, so
-    ``PROJEN_TASKS`` must declare every spawned task before the task that
-    spawns it.
+    Pass one registers every spec; pass two resolves ``spawns``, so
+    config order is free and subtasks may be any project task, declared
+    in ``PROJEN_TASKS`` or a projen built-in.
 
     Raises:
-        UndeclaredSubtaskError: If a task spawns an undeclared subtask.
+        UndeclaredSubtaskError: If a spawned task is neither declared
+            nor a built-in.
     """
-    tasks_by_name: dict[TaskName, Task] = {}
-    for task_spec in PROJEN_TASKS:
-        tasks_by_name[task_spec["name"]] = project.add_task(
-            task_spec["name"],
+    tasks_by_name: dict[TaskName, Task] = {
+        task_name: project.add_task(
+            task_name,
             description=task_spec["description"],
             exec=task_spec.get("exec"),
         )
-        task = tasks_by_name[task_spec["name"]]
+        for task_name, task_spec in PROJEN_TASKS.items()
+    }
+
+    for task_name, task_spec in PROJEN_TASKS.items():
+        task = tasks_by_name[task_name]
         for subtask_name in task_spec.get("spawns", []):
-            subtask = tasks_by_name.get(subtask_name)
+            subtask = project.tasks.try_find(subtask_name)
             if subtask is None:
                 msg = (
-                    f"task '{task_spec['name']}' spawns undeclared task "
-                    f"'{subtask_name}'; declare every spawned task in "
-                    "PROJEN_TASKS before the task that spawns it"
+                    f"task '{task_name}' spawns undeclared task "
+                    f"'{subtask_name}'; declare it in PROJEN_TASKS "
+                    "or spawn a built-in task"
                 )
                 raise UndeclaredSubtaskError(msg)
             task.spawn(subtask)
@@ -207,17 +211,18 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
         raise RuntimeError(msg)
 
     steps_by_name: Final[dict[JobStepName, JobStep]] = {
-        step_spec["name"]: JobStep(**step_spec) for step_spec in GITHUB_JOB_STEPS
+        step_name: JobStep(name=step_name, **step_spec)
+        for step_name, step_spec in GITHUB_JOB_STEPS.items()
     }
 
     jobs_by_name: Final[dict[JobName, Job]] = {}
-    for job_spec in GITHUB_JOBS:
+    for job_name, job_spec in GITHUB_JOBS.items():
         job_steps: list[JobStep] = []
         for step_name in job_spec["steps"]:
             step = steps_by_name.get(step_name)
             if step is None:
                 msg = (
-                    f"job '{job_spec['id']}' references undeclared step "
+                    f"job '{job_name}' references undeclared step "
                     f"'{step_name}'; declare every step in GITHUB_JOB_STEPS"
                 )
                 raise UndeclaredStepError(msg)
@@ -234,7 +239,7 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
                     include=cast("list[Mapping[str, str]]", matrix_entries)
                 )
             )
-        jobs_by_name[job_spec["id"]] = Job(
+        jobs_by_name[job_name] = Job(
             runs_on=job_spec["runs_on"],
             permissions={
                 scope: PERMISSION_CLASSES[level]
@@ -245,14 +250,14 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
             strategy=strategy,
         )
 
-    for workflow_spec in GITHUB_WORKFLOWS:
-        workflow = github.add_workflow(workflow_spec["name"])
+    for workflow_name, workflow_spec in GITHUB_WORKFLOWS.items():
+        workflow = github.add_workflow(workflow_name)
         workflow.on(**workflow_spec["on"])
         for job_name in workflow_spec["jobs"]:
             job = jobs_by_name.get(job_name)
             if job is None:
                 msg = (
-                    f"workflow '{workflow_spec['name']}' references an "
+                    f"workflow '{workflow_name}' references an "
                     f"undeclared job '{job_name}'; declare it in "
                     "GITHUB_JOBS"
                 )
