@@ -83,6 +83,22 @@ dependency instead, upgrade it first (like `pytest` was when `uv audit`
 flagged `PYSEC-2026-1845`); the `[audit].ignore` entries in `uv.toml`
 are the last resort, for findings that are demonstrably unreachable.
 
+**cdk-nag (synthesis-time gate).** Configured in `app.py`: cdk-nag v3
+(`AwsSolutions` + NIST 800-53 rev 5 packs) runs as CDK policy-validation
+plugins inside every `cdk synth`/`diff`/`deploy`. Unsuppressed errors
+fail everywhere, warnings fail CI too (the built-in `synth` task is
+overridden in `projen_config.py` to `cdk synth --strict`). Intentional
+findings are acknowledged on the app scope, not in a policy file:
+
+```python
+Validations.of(app).acknowledge(
+    Acknowledgment(id="AwsSolutions::AwsSolutions-EC23", reason="..."),
+)
+```
+
+The empty-stack warning `CloudFormation-Validate::F0001` is
+acknowledged in `app.py` until the first real resource lands.
+
 **Checkov (IaC).** Checkov now scans the synthesized CloudFormation
 template in `cdk.out/` (step `IaC scan` in the `scan` job). The
 `skip-check` mechanism in `.checkov.yaml`/CLI is broken in 3.4.0 (silent

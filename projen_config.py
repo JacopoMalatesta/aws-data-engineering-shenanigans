@@ -236,6 +236,13 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             TaskName.PYTHON_STATIC_ANALYSIS,
         ],
     },
+    TaskName.CDK_SYNTH: {
+        "description": (
+            "Synthesize the CDK app into cdk.out, failing on warnings "
+            "(--strict), so IaC policy warnings gate CI alongside errors"
+        ),
+        "exec": "cdk synth --strict",
+    },
     TaskName.SECURITY_SCA_PYTHON: {
         "description": "Audit uv.lock for known vulnerabilities and deprecated projects",
         "exec": "uv audit --preview-features audit-command",

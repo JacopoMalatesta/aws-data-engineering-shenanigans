@@ -19,7 +19,7 @@ from projen.github.workflows import (
 )
 from projen.vscode import VsCode
 
-from constants import PYTHON_VERSION
+from constants import CDK_NAG_VERSION, PYTHON_VERSION
 from projen_config import (
     DEV_DEPS,
     GIT_IGNORE_PATTERNS,
@@ -81,12 +81,12 @@ def set_up_project() -> None:
 
 
 def _create_project() -> AwsCdkPythonApp:
-    """Instantiate the app and its config-level GitHub lint options.
+    """Instantiate the app, register the cdk-nag dependency, apply lint options.
 
     Returns:
         The freshly created CDK Python app.
     """
-    return AwsCdkPythonApp(
+    project = AwsCdkPythonApp(
         author_email=PROJECT_SPEC["author_email"],
         author_name=PROJECT_SPEC["author_name"],
         cdk_version=PROJECT_SPEC["cdk_version"],
@@ -113,6 +113,8 @@ def _create_project() -> AwsCdkPythonApp:
             ),
         ),
     )
+    project.add_dependency(f"cdk-nag@{CDK_NAG_VERSION}")
+    return project
 
 
 def _configure_pyproject(project: AwsCdkPythonApp) -> None:
@@ -153,22 +155,24 @@ def _add_project_files(project: AwsCdkPythonApp) -> None:
 def _add_tasks(project: AwsCdkPythonApp) -> None:
     """Declare ``PROJEN_TASKS``, resolve spawns and wire pre-commit.
 
-    Pass one registers every spec; pass two resolves ``spawns``, so
-    config order is free and subtasks may be any project task, declared
-    in ``PROJEN_TASKS`` or a projen built-in.
+    Pass one registers every spec, replacing any projen built-in that
+    carries the same name; pass two resolves ``spawns``, so config order
+    is free and subtasks may be any project task, declared in
+    ``PROJEN_TASKS`` or a projen built-in.
 
     Raises:
         UndeclaredSubtaskError: If a spawned task is neither declared
             nor a built-in.
     """
-    tasks_by_name: dict[TaskName, Task] = {
-        task_name: project.add_task(
+    tasks_by_name: dict[TaskName, Task] = {}
+    for task_name, task_spec in PROJEN_TASKS.items():
+        if project.tasks.try_find(task_name) is not None:
+            _ = project.tasks.remove_task(task_name)
+        tasks_by_name[task_name] = project.add_task(
             task_name,
             description=task_spec["description"],
             exec=task_spec.get("exec"),
         )
-        for task_name, task_spec in PROJEN_TASKS.items()
-    }
 
     for task_name, task_spec in PROJEN_TASKS.items():
         task = tasks_by_name[task_name]

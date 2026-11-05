@@ -36,8 +36,10 @@ class TaskName(StrEnum):
 
     Values are the task names; members are scope labels (``PYTHON_*``
     Python-source quality gates, ``CDK_*`` ``cdk`` CLI wrappers,
-    ``SECURITY_*`` repo and lockfile scans). ``CDK_*``, ``TEST`` and
-    ``PACKAGE`` are projen built-ins; the rest are declared in
+    ``SECURITY_*`` repo and lockfile scans). ``CDK_DEPLOY``, ``CDK_DIFF``,
+    ``CDK_SYNTH_SILENT``, ``TEST`` and ``PACKAGE`` are projen built-ins;
+    ``CDK_SYNTH`` is a projen built-in whose behavior ``PROJEN_TASKS``
+    overrides for strict synthesis; the rest are declared in
     ``PROJEN_TASKS``. Unlisted built-ins (``destroy``, ``watch``) are
     intentional. Step labels live in ``JobStepName``.
     """

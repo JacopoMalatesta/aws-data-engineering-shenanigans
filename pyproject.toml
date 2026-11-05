@@ -5,7 +5,11 @@ name = "aws-data-engineering-shenanigans"
 version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
-dependencies = [ "aws-cdk-lib>=2.275.0,<3.0.0", "constructs>=10.5.1,<11.0.0" ]
+dependencies = [
+  "aws-cdk-lib>=2.275.0,<3.0.0",
+  "cdk-nag==3.0.2",
+  "constructs>=10.5.1,<11.0.0"
+]
 
   [[project.authors]]
   name = "JacopoMalatesta"
