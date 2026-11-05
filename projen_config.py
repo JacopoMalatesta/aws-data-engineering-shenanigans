@@ -202,39 +202,32 @@ PYPROJECT_TOOL_SECTIONS: Final = {
     },
 }
 
-PROJEN_TASKS: Final[list[ProjenTaskSpec]] = [
-    {
-        "name": TaskName.PYTHON_LINT,
+PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
+    TaskName.PYTHON_LINT: {
         "description": "Lint with ruff",
         "exec": "ruff check .",
     },
-    {
-        "name": TaskName.PYTHON_LINT_FIX,
+    TaskName.PYTHON_LINT_FIX: {
         "description": "Autofix ruff violations (safe fixes only)",
         "exec": "ruff check --fix .",
     },
-    {
-        "name": TaskName.PYTHON_FORMAT,
+    TaskName.PYTHON_FORMAT: {
         "description": "Format code with ruff",
         "exec": "ruff format .",
     },
-    {
-        "name": TaskName.PYTHON_FORMAT_CHECK,
+    TaskName.PYTHON_FORMAT_CHECK: {
         "description": "Verify ruff formatting",
         "exec": "ruff format --check .",
     },
-    {
-        "name": TaskName.PYTHON_STATIC_ANALYSIS,
+    TaskName.PYTHON_STATIC_ANALYSIS: {
         "description": "Static analysis with basedpyright",
         "exec": "basedpyright",
     },
-    {
-        "name": TaskName.PYTHON_TYPECHECK,
+    TaskName.PYTHON_TYPECHECK: {
         "description": "Type check with ty",
         "exec": "ty check --error-on-warning .",
     },
-    {
-        "name": TaskName.PYTHON_CHECK,
+    TaskName.PYTHON_CHECK: {
         "description": "Run all static checks: lint, format check, type check",
         "spawns": [
             TaskName.PYTHON_LINT,
@@ -243,54 +236,45 @@ PROJEN_TASKS: Final[list[ProjenTaskSpec]] = [
             TaskName.PYTHON_STATIC_ANALYSIS,
         ],
     },
-    {
-        "name": TaskName.SECURITY_SCA_PYTHON,
+    TaskName.SECURITY_SCA_PYTHON: {
         "description": "Audit uv.lock for known vulnerabilities and deprecated projects",
         "exec": "uv audit --preview-features audit-command",
     },
-    {
-        "name": TaskName.SECURITY_SAST,
+    TaskName.SECURITY_SAST: {
         "description": "Static pattern scan of tracked sources (three rulesets)",
         "exec": (
             "opengrep scan --verbose --config p/security-audit --config p/owasp-top-ten"
             " --config p/python ."
         ),
     },
-    {
-        "name": TaskName.SECURITY_SECRET_SCAN,
+    TaskName.SECURITY_SECRET_SCAN: {
         "description": "Scan the full git history for leaked credentials",
         "exec": "gitleaks detect --no-banner --config .gitleaks.toml",
     },
-    {
-        "name": TaskName.SECURITY_MISCONFIG_SCAN,
+    TaskName.SECURITY_MISCONFIG_SCAN: {
         "description": "Misconfiguration scan of the workspace (Dockerfile etc.)",
         "exec": "trivy fs --config trivy.yaml --exit-code 1 .",
     },
-    {
-        "name": TaskName.SECURITY_IAC_SCAN,
+    TaskName.SECURITY_IAC_SCAN: {
         "description": "IaC policy scan of the synthesized CloudFormation template (cdk.out)",
         "exec": f"uvx --isolated checkov@{CHECKOV_VERSION} --config-file .checkov.yaml --show-config",
     },
-    {
-        "name": TaskName.SECURITY_GITHUB_ACTIONS_SCAN,
+    TaskName.SECURITY_GITHUB_ACTIONS_SCAN: {
         "description": "Static analysis of GitHub Actions workflows",
         "exec": "zizmor .",
     },
-    {
-        "name": TaskName.SECURITY_SCA_MULTI_LANGUAGE,
+    TaskName.SECURITY_SCA_MULTI_LANGUAGE: {
         "description": "Scan dependencies for known vulnerabilities (OSV)",
         "exec": "osv-scanner scan source --recursive .",
     },
-    {
-        "name": TaskName.SECURITY_DOCKERFILE_LINT,
+    TaskName.SECURITY_DOCKERFILE_LINT: {
         "description": "Lint Dockerfiles with Hadolint",
         "exec": (
             "find . -name 'Dockerfile*' -not -path './.venv/*' "
             "-not -path '*/node_modules/*' -exec hadolint {} +"
         ),
     },
-    {
-        "name": TaskName.SECURITY,
+    TaskName.SECURITY: {
         "description": (
             "Run all security scanners: dependency audit, secret history, "
             "source patterns, config misconfigurations, IaC policy"
@@ -306,7 +290,7 @@ PROJEN_TASKS: Final[list[ProjenTaskSpec]] = [
             TaskName.SECURITY_DOCKERFILE_LINT,
         ],
     },
-]
+}
 
 PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
     {
@@ -345,9 +329,8 @@ PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
     },
 ]
 
-PROJECT_FILES: Final[list[FileSpec]] = [
-    {
-        "file_path": ".pre-commit-config.yaml",
+PROJECT_FILES: Final[dict[str, FileSpec]] = {
+    ".pre-commit-config.yaml": {
         "file_type": FileType.YAML,
         "obj": {
             "repos": [
@@ -358,8 +341,7 @@ PROJECT_FILES: Final[list[FileSpec]] = [
             ]
         },
     },
-    {
-        "file_path": "trivy.yaml",
+    "trivy.yaml": {
         "file_type": FileType.YAML,
         "obj": {
             "severity": ["UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
@@ -369,16 +351,14 @@ PROJECT_FILES: Final[list[FileSpec]] = [
             },
         },
     },
-    {
-        "file_path": ".gitleaks.toml",
+    ".gitleaks.toml": {
         "file_type": FileType.TOML,
         "obj": {
             "title": "aws-data-engineering-shenanigans gitleaks policy",
             "extend": {"useDefault": True},
         },
     },
-    {
-        "file_path": "zizmor.yml",
+    "zizmor.yml": {
         "file_type": FileType.YAML,
         "obj": {
             "rules": {
@@ -389,22 +369,19 @@ PROJECT_FILES: Final[list[FileSpec]] = [
             }
         },
     },
-    {
-        "file_path": ".hadolint.yaml",
+    ".hadolint.yaml": {
         "file_type": FileType.YAML,
         "obj": {},
     },
-    {
-        "file_path": "osv-scanner.toml",
+    "osv-scanner.toml": {
         "file_type": FileType.TOML,
         "obj": {},
     },
-    {
-        "file_path": ".checkov.yaml",
+    ".checkov.yaml": {
         "file_type": FileType.YAML,
         "obj": {"framework": ["cloudformation"], "directory": "cdk.out"},
     },
-]
+}
 
 DEPLOYMENT_ENVIRONMENTS: Final[list[DeploymentEnvironment]] = [
     {
@@ -416,32 +393,27 @@ DEPLOYMENT_ENVIRONMENTS: Final[list[DeploymentEnvironment]] = [
 
 CI_RUNNERS: Final = ["ubuntu-latest"]
 
-GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
-    {
-        "name": JobStepName.AWS_CREDENTIALS,
+GITHUB_JOB_STEPS: Final[dict[JobStepName, GitHubJobStepSpec]] = {
+    JobStepName.AWS_CREDENTIALS: {
         "uses": AWS_CREDENTIALS_V6_PIN,
         "with_": {
             "role-to-assume": "arn:aws:iam::${{ matrix.aws_account_id }}:role/github-actions-deploy",
             "aws-region": "${{ matrix.region_name }}",
         },
     },
-    {
-        "name": JobStepName.CDK_DEPLOY,
+    JobStepName.CDK_DEPLOY: {
         "run": f'{PROJEN_RUN} deploy "*-${{{{ matrix.environment_name }}}}"',
     },
-    {"name": JobStepName.CDK_DIFF, "run": f"{PROJEN_RUN} {TaskName.CDK_DIFF}"},
-    {
-        "name": JobStepName.CDK_DIFF_CAPTURE,
+    JobStepName.CDK_DIFF: {"run": f"{PROJEN_RUN} {TaskName.CDK_DIFF}"},
+    JobStepName.CDK_DIFF_CAPTURE: {
         "run": f"{PROJEN_RUN} {TaskName.CDK_DIFF} > cdk-diff.txt || true",
     },
-    {"name": JobStepName.CDK_SYNTH, "run": f"{PROJEN_RUN} {TaskName.CDK_SYNTH}"},
-    {
-        "name": JobStepName.CHECKOUT,
+    JobStepName.CDK_SYNTH: {"run": f"{PROJEN_RUN} {TaskName.CDK_SYNTH}"},
+    JobStepName.CHECKOUT: {
         "uses": CHECKOUT_V7_PIN,
         "with_": {"persist-credentials": False},
     },
-    {
-        "name": JobStepName.DOCKERFILE_SCAN,
+    JobStepName.DOCKERFILE_SCAN: {
         "background": True,
         "run": (
             "curl -fsSL -o /tmp/hadolint "
@@ -455,12 +427,10 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
             f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
         ),
     },
-    {
-        "name": JobStepName.PYTHON_FORMAT_CHECK,
+    JobStepName.PYTHON_FORMAT_CHECK: {
         "run": f"{PROJEN_RUN} {TaskName.PYTHON_FORMAT_CHECK}",
     },
-    {
-        "name": JobStepName.GITHUB_ACTIONS_SCAN,
+    JobStepName.GITHUB_ACTIONS_SCAN: {
         "background": True,
         "run": (
             "curl -fsSL -o /tmp/zizmor.tar.gz "
@@ -475,8 +445,7 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
             f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_SCAN}"
         ),
     },
-    {
-        "name": JobStepName.IAC_SCAN,
+    JobStepName.IAC_SCAN: {
         "background": True,
         "run": (
             f"{PROJEN_RUN} {TaskName.CDK_SYNTH_SILENT}\n"
@@ -484,12 +453,11 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
             f"{PROJEN_RUN} {TaskName.SECURITY_IAC_SCAN}"
         ),
     },
-    {"name": JobStepName.INSTALL_CDK_CLI, "run": "npm install -g aws-cdk@2.1146.1"},
-    {"name": JobStepName.INSTALL_PYTHON_DEPENDENCIES, "run": "uv sync --frozen"},
-    {"name": JobStepName.INSTALL_PROJEN_CLI, "run": "npm install -g projen@0.104.17"},
-    {"name": JobStepName.PYTHON_LINT, "run": f"{PROJEN_RUN} {TaskName.PYTHON_LINT}"},
-    {
-        "name": JobStepName.MISCONFIG_SCAN,
+    JobStepName.INSTALL_CDK_CLI: {"run": "npm install -g aws-cdk@2.1146.1"},
+    JobStepName.INSTALL_PYTHON_DEPENDENCIES: {"run": "uv sync --frozen"},
+    JobStepName.INSTALL_PROJEN_CLI: {"run": "npm install -g projen@0.104.17"},
+    JobStepName.PYTHON_LINT: {"run": f"{PROJEN_RUN} {TaskName.PYTHON_LINT}"},
+    JobStepName.MISCONFIG_SCAN: {
         "background": True,
         "run": (
             "curl -fsSL -o /tmp/trivy.tar.gz "
@@ -504,21 +472,18 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
             f"{PROJEN_RUN} {TaskName.SECURITY_MISCONFIG_SCAN}"
         ),
     },
-    {"name": JobStepName.PYTHON_PACKAGE, "run": f"{PROJEN_RUN} {TaskName.PACKAGE}"},
-    {
-        "name": JobStepName.POST_CDK_DIFF,
+    JobStepName.PYTHON_PACKAGE: {"run": f"{PROJEN_RUN} {TaskName.PACKAGE}"},
+    JobStepName.POST_CDK_DIFF: {
         "env": {
             "GH_TOKEN": "${{ github.token }}",
             "PR_NUMBER": "${{ github.event.pull_request.number }}",
         },
         "run": POST_CDK_DIFF,
     },
-    {
-        "name": JobStepName.REGENERATE_PROJEN_FILES,
+    JobStepName.REGENERATE_PROJEN_FILES: {
         "run": f"{PROJEN_RUN} --no-post --debug",
     },
-    {
-        "name": JobStepName.SAST_SCAN,
+    JobStepName.SAST_SCAN: {
         "background": True,
         "run": (
             "curl -fsSL -o /tmp/opengrep "
@@ -531,8 +496,7 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
             f"{PROJEN_RUN} {TaskName.SECURITY_SAST}"
         ),
     },
-    {
-        "name": JobStepName.SCA_MULTI_LANGUAGE,
+    JobStepName.SCA_MULTI_LANGUAGE: {
         "background": True,
         "run": (
             "curl -fsSL -o /tmp/osv-scanner "
@@ -546,13 +510,11 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
             f"{PROJEN_RUN} {TaskName.SECURITY_SCA_MULTI_LANGUAGE}"
         ),
     },
-    {
-        "name": JobStepName.SCA_PYTHON,
+    JobStepName.SCA_PYTHON: {
         "background": True,
         "run": f"{PROJEN_RUN} {TaskName.SECURITY_SCA_PYTHON}",
     },
-    {
-        "name": JobStepName.SECRET_SCAN,
+    JobStepName.SECRET_SCAN: {
         "background": True,
         "run": (
             'if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then\n'
@@ -570,31 +532,26 @@ GITHUB_JOB_STEPS: Final[list[GitHubJobStepSpec]] = [
             f"{PROJEN_RUN} {TaskName.SECURITY_SECRET_SCAN}"
         ),
     },
-    {
-        "name": JobStepName.INSTALL_NODE,
+    JobStepName.INSTALL_NODE: {
         "uses": SETUP_NODE_V7_PIN,
         "with_": {"node-version": NODE_VERSION},
     },
-    {
-        "name": JobStepName.INSTALL_UV,
+    JobStepName.INSTALL_UV: {
         "uses": SETUP_UV_V10_PIN,
         "with_": {"python-version": PYTHON_VERSION},
     },
-    {
-        "name": JobStepName.PYTHON_STATIC_ANALYSIS,
+    JobStepName.PYTHON_STATIC_ANALYSIS: {
         "run": f"{PROJEN_RUN} {TaskName.PYTHON_STATIC_ANALYSIS}",
     },
-    {
-        "name": JobStepName.PYTHON_TYPECHECK,
+    JobStepName.PYTHON_TYPECHECK: {
         "run": f"{PROJEN_RUN} {TaskName.PYTHON_TYPECHECK}",
     },
-    {"name": JobStepName.PYTHON_UNIT_TESTS, "run": f"{PROJEN_RUN} {TaskName.TEST}"},
-    {"name": JobStepName.WAIT_FOR_SCANS, "wait_all": True},
-]
+    JobStepName.PYTHON_UNIT_TESTS: {"run": f"{PROJEN_RUN} {TaskName.TEST}"},
+    JobStepName.WAIT_FOR_SCANS: {"wait_all": True},
+}
 
-GITHUB_JOBS: Final[list[GitHubJobSpec]] = [
-    {
-        "id": JobName.CHECK,
+GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
+    JobName.CHECK: {
         "runs_on": CI_RUNNERS,
         "permissions": {"contents": GitHubPermission.READ},
         "steps": [
@@ -612,8 +569,7 @@ GITHUB_JOBS: Final[list[GitHubJobSpec]] = [
             JobStepName.PYTHON_PACKAGE,
         ],
     },
-    {
-        "id": JobName.BUILD,
+    JobName.BUILD: {
         "runs_on": CI_RUNNERS,
         "needs": [JobName.CHECK],
         "matrix": DEPLOYMENT_ENVIRONMENTS,
@@ -635,8 +591,7 @@ GITHUB_JOBS: Final[list[GitHubJobSpec]] = [
             JobStepName.POST_CDK_DIFF,
         ],
     },
-    {
-        "id": JobName.DEPLOY,
+    JobName.DEPLOY: {
         "runs_on": CI_RUNNERS,
         "needs": [JobName.CHECK],
         "matrix": DEPLOYMENT_ENVIRONMENTS,
@@ -656,8 +611,7 @@ GITHUB_JOBS: Final[list[GitHubJobSpec]] = [
             JobStepName.CDK_DEPLOY,
         ],
     },
-    {
-        "id": JobName.SCAN,
+    JobName.SCAN: {
         "runs_on": CI_RUNNERS,
         "permissions": {"contents": GitHubPermission.READ},
         "steps": [
@@ -678,22 +632,19 @@ GITHUB_JOBS: Final[list[GitHubJobSpec]] = [
             JobStepName.WAIT_FOR_SCANS,
         ],
     },
-]
+}
 
-GITHUB_WORKFLOWS: Final[list[GitHubWorkflowSpec]] = [
-    {
-        "name": WorkflowName.BUILD,
+GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
+    WorkflowName.BUILD: {
         "on": {"pull_request": {}},
         "jobs": [JobName.CHECK, JobName.BUILD],
     },
-    {
-        "name": WorkflowName.DEPLOY,
+    WorkflowName.DEPLOY: {
         "on": {"push": {"branches": ["main"]}, "workflow_dispatch": {}},
         "jobs": [JobName.CHECK, JobName.DEPLOY],
     },
-    {
-        "name": WorkflowName.SECURITY,
+    WorkflowName.SECURITY: {
         "on": {"pull_request": {}, "workflow_dispatch": {}},
         "jobs": [JobName.SCAN],
     },
-]
+}
