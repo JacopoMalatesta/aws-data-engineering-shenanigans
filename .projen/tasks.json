@@ -391,13 +391,10 @@
     },
     "synth": {
       "name": "synth",
-      "description": "Synthesizes your cdk app into cdk.out",
+      "description": "Synthesize the CDK app into cdk.out, failing on warnings (--strict), so IaC policy warnings gate CI alongside errors",
       "steps": [
         {
-          "execArgs": [
-            "cdk",
-            "synth"
-          ]
+          "exec": "cdk synth --strict"
         }
       ]
     },

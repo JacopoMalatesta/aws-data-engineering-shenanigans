@@ -36,6 +36,11 @@
       "type": "runtime"
     },
     {
+      "name": "cdk-nag",
+      "version": "3.0.2",
+      "type": "runtime"
+    },
+    {
       "name": "constructs",
       "version": "^10.5.1",
       "type": "runtime"
