@@ -12,6 +12,10 @@ from constants import (
     AWS_CREDENTIALS_V6_PIN,
     CHECKOUT_V7_PIN,
     CHECKOV_VERSION,
+    COMMITLINT_CLI_VERSION,
+    COMMITLINT_CONFIG_CONVENTIONAL_VERSION,
+    COMMITLINT_RULE_CONDITION_ALWAYS,
+    COMMITLINT_RULE_SEVERITY_ERROR,
     DJANGO_RUFF_RULESET,
     FASTAPI_RUFF_RULESET,
     GITLEAKS_LINUX_X64_TARBALL_SHA256,
@@ -26,7 +30,9 @@ from constants import (
     OSV_SCANNER_VERSION,
     PANDAS_RUFF_RULESET,
     POST_CDK_DIFF,
+    PRE_COMMIT_LANGUAGE_NODE,
     PRE_COMMIT_LANGUAGE_UNSUPPORTED,
+    PRE_COMMIT_LANGUAGE_VERSION_SYSTEM,
     PROJEN_RUN,
     PYTHON_VERSION,
     SETUP_NODE_V7_PIN,
@@ -299,6 +305,11 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
     },
 }
 
+COMMITLINT_NPM_PACKAGES: Final = [
+    f"@commitlint/cli@{COMMITLINT_CLI_VERSION}",
+    f"@commitlint/config-conventional@{COMMITLINT_CONFIG_CONVENTIONAL_VERSION}",
+]
+
 PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
     {
         "id": "ruff-lint-fix",
@@ -334,18 +345,44 @@ PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
         "pass_filenames": False,
         "files": r"\.py$",
     },
+    {
+        "id": "commitlint",
+        "name": "commitlint",
+        "entry": "commitlint",
+        "args": ["--edit"],
+        "language": PRE_COMMIT_LANGUAGE_NODE,
+        "language_version": PRE_COMMIT_LANGUAGE_VERSION_SYSTEM,
+        "additional_dependencies": COMMITLINT_NPM_PACKAGES,
+        "stages": ["commit-msg"],
+    },
 ]
 
 PROJECT_FILES: Final[dict[str, FileSpec]] = {
     ".pre-commit-config.yaml": {
         "file_type": FileType.YAML,
         "obj": {
+            # pre-commit runs hooks in every stage by default — keep the
+            # code checks at pre-commit; commitlint opts into commit-msg.
+            "default_stages": ["pre-commit"],
             "repos": [
                 {
                     "repo": "local",
                     "hooks": cast("list[JsonValue]", PRE_COMMIT_HOOKS),
                 }
-            ]
+            ],
+        },
+    },
+    ".commitlintrc.yaml": {
+        "file_type": FileType.YAML,
+        "obj": {
+            "extends": ["@commitlint/config-conventional"],
+            "rules": {
+                "type-enum": [
+                    COMMITLINT_RULE_SEVERITY_ERROR,
+                    COMMITLINT_RULE_CONDITION_ALWAYS,
+                    [*SEMANTIC_TITLE_TYPES],
+                ],
+            },
         },
     },
     "trivy.yaml": {
@@ -370,7 +407,12 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
         "obj": {
             "rules": {
                 "adhoc-packages": {
-                    "ignore": ["build.yml", "deploy.yml", "security.yml"]
+                    "ignore": [
+                        "build.yml",
+                        "commitlint.yml",
+                        "deploy.yml",
+                        "security.yml",
+                    ]
                 },
                 "dangerous-triggers": {"ignore": ["pull-request-lint.yml"]},
             }
@@ -419,6 +461,20 @@ GITHUB_JOB_STEPS: Final[dict[JobStepName, GitHubJobStepSpec]] = {
     JobStepName.CHECKOUT: {
         "uses": CHECKOUT_V7_PIN,
         "with_": {"persist-credentials": False},
+    },
+    JobStepName.CHECKOUT_FULL_HISTORY: {
+        "uses": CHECKOUT_V7_PIN,
+        "with_": {"persist-credentials": False, "fetch-depth": 0},
+    },
+    JobStepName.COMMIT_LINT: {
+        "run": (
+            "npm install --no-save --no-package-lock "
+            f"{COMMITLINT_NPM_PACKAGES[0]} {COMMITLINT_NPM_PACKAGES[1]}\n"
+            "npx --no-install commitlint --version\n"
+            "npx --no-install commitlint --from="
+            "${{ github.event.pull_request.base.sha }} "
+            "--to=${{ github.event.pull_request.head.sha }} --verbose"
+        ),
     },
     JobStepName.DOCKERFILE_SCAN: {
         "background": True,
@@ -598,6 +654,15 @@ GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
             JobStepName.POST_CDK_DIFF,
         ],
     },
+    JobName.COMMIT_LINT: {
+        "runs_on": CI_RUNNERS,
+        "permissions": {"contents": GitHubPermission.READ},
+        "steps": [
+            JobStepName.CHECKOUT_FULL_HISTORY,
+            JobStepName.INSTALL_NODE,
+            JobStepName.COMMIT_LINT,
+        ],
+    },
     JobName.DEPLOY: {
         "runs_on": CI_RUNNERS,
         "needs": [JobName.CHECK],
@@ -645,6 +710,10 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
     WorkflowName.BUILD: {
         "on": {"pull_request": {}},
         "jobs": [JobName.CHECK, JobName.BUILD],
+    },
+    WorkflowName.COMMIT_LINT: {
+        "on": {"pull_request": {}},
+        "jobs": [JobName.COMMIT_LINT],
     },
     WorkflowName.DEPLOY: {
         "on": {"push": {"branches": ["main"]}, "workflow_dispatch": {}},

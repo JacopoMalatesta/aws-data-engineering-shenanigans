@@ -191,6 +191,7 @@ def _add_tasks(project: AwsCdkPythonApp) -> None:
     install_task = project.tasks.try_find("install")
     if install_task is not None:
         install_task.exec("pre-commit install")
+        install_task.exec("pre-commit install --hook-type commit-msg")
 
 
 def _configure_editor_tooling(project: AwsCdkPythonApp) -> None:

@@ -35,13 +35,17 @@ GitHub Actions (push to `main`).
 | `ruff-format`        | `.venv/bin/ruff format`                   | staged `.py` files               |
 | `ty-check`           | `.venv/bin/ty check --error-on-warning .` | staged `.py` triggers whole-repo |
 | `basedpyright-check` | `.venv/bin/basedpyright`                  | staged `.py` triggers whole-repo |
+| `commitlint`         | `commitlint --edit`                       | the commit message               |
 
 Fixer hooks rewrite files in place; pre-commit then fails the commit
 once — re-stage with `git add` and commit again.
 
 The hooks invoke the binaries `uv sync` places in `.venv` (versions come
 from `uv.lock`), so they work from any shell or GUI git client, without
-touching your shell's PATH.
+touching your shell's PATH. The one exception is `commitlint`, which
+pre-commit manages as a node environment (`@commitlint/cli` +
+`@commitlint/config-conventional`, pinned in `projen_config.py`), so it
+needs node ≥ 22.12 and npm on PATH instead.
 
 Hooks are installed by the install task: `npx projen install` after
 cloning. Useful invocations:
@@ -50,6 +54,16 @@ cloning. Useful invocations:
 $ uv run pre-commit run --all-files     # full sweep
 $ SKIP=ruff-format git commit -m "..."  # skip one hook for one commit
 ```
+
+## Commit style
+
+Commit messages follow Conventional Commits with exactly the types in
+`SEMANTIC_TITLE_TYPES` (`projen_config.py`) — the same list the PR title
+check in `pull-request-lint.yml` uses. Enforcement is mirrored: the
+local `commitlint` commit-msg hook, and a standalone `commitlint` job in
+`build.yml` lints every PR commit (`--from` the merge base). Auto
+messages (`Merge …`, `Revert …`, semver tags, `fixup!`) are exempt via
+commitlint's built-in ignores.
 
 ## Security checks
 

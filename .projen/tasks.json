@@ -194,6 +194,9 @@
         },
         {
           "exec": "pre-commit install"
+        },
+        {
+          "exec": "pre-commit install --hook-type commit-msg"
         }
       ]
     },
