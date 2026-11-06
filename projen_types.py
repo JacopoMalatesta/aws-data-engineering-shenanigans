@@ -85,7 +85,14 @@ class ProjenTaskSpec(TypedDict):
 
 
 class PreCommitHookSpec(TypedDict):
-    """A single hook entry in ``.pre-commit-config.yaml``."""
+    """A single hook entry in ``.pre-commit-config.yaml``.
+
+    ``stages`` pins the hook to one stage (hooks without it run in
+    every installed stage); ``additional_dependencies`` seeds
+    pre-commit-managed environments such as ``language: node``;
+    ``language_version`` selects that environment's runtime (``system``
+    shares the PATH node, avoiding nodeenv downloads).
+    """
 
     id: str
     name: str
@@ -95,12 +102,16 @@ class PreCommitHookSpec(TypedDict):
     types_or: NotRequired[list[str]]
     pass_filenames: NotRequired[bool]
     files: NotRequired[str]
+    stages: NotRequired[list[str]]
+    additional_dependencies: NotRequired[list[str]]
+    language_version: NotRequired[str]
 
 
 class WorkflowName(StrEnum):
     """Name of a GitHub Actions workflow managed by this project."""
 
     BUILD = "build"
+    COMMIT_LINT = "commitlint"
     DEPLOY = "deploy"
     SECURITY = "security"
 
@@ -120,6 +131,7 @@ class JobName(StrEnum):
 
     BUILD = "build"
     CHECK = "check"
+    COMMIT_LINT = "commitlint"
     DEPLOY = "deploy"
     SCAN = "scan"
 
@@ -129,7 +141,9 @@ class JobStepName(StrEnum):
 
     Values are the rendered YAML ``name`` labels and must stay unique
     (shared values collapse steps). Members are scope labels under the
-    same conventions as ``TaskName``. ``INSTALL_NODE``/``INSTALL_UV`` use
+    same conventions as ``TaskName``. ``CHECKOUT`` and
+    ``CHECKOUT_FULL_HISTORY`` pin the official checkout action at
+    default vs full fetch depth, ``INSTALL_NODE``/``INSTALL_UV`` use
     official ``setup-*`` actions; other ``INSTALL_*`` steps are shell
     installs (``uses:`` vs ``run:`` in each spec).
     """
@@ -140,6 +154,8 @@ class JobStepName(StrEnum):
     CDK_DIFF_CAPTURE = "CDK diff capture"
     CDK_SYNTH = "CDK synth"
     CHECKOUT = "Checkout repository"
+    CHECKOUT_FULL_HISTORY = "Checkout repository (full history)"
+    COMMIT_LINT = "Commit message lint"
     DOCKERFILE_SCAN = "Dockerfile scan"
     PYTHON_FORMAT_CHECK = "Python format check"
     GITHUB_ACTIONS_SCAN = "GitHub Actions scan"

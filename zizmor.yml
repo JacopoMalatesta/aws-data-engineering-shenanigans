@@ -4,6 +4,7 @@ rules:
   adhoc-packages:
     ignore:
       - build.yml
+      - commitlint.yml
       - deploy.yml
       - security.yml
   dangerous-triggers:

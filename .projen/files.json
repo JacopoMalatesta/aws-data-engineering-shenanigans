@@ -1,8 +1,10 @@
 {
   "files": [
     ".checkov.yaml",
+    ".commitlintrc.yaml",
     ".gitattributes",
     ".github/workflows/build.yml",
+    ".github/workflows/commitlint.yml",
     ".github/workflows/deploy.yml",
     ".github/workflows/pull-request-lint.yml",
     ".github/workflows/security.yml",

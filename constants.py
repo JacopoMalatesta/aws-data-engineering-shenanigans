@@ -41,6 +41,12 @@ OPENGREP_MANYLINUX_X86_SHA256: Final = (
 CHECKOV_VERSION: Final = "3.4.0"
 CDK_NAG_VERSION: Final = "3.0.2"
 
+COMMITLINT_CLI_VERSION: Final = "21.2.4"
+COMMITLINT_CONFIG_CONVENTIONAL_VERSION: Final = "21.2.4"
+# commitlint rule severities: 0 = disabled, 1 = warn, 2 = error.
+COMMITLINT_RULE_SEVERITY_ERROR: Final = 2
+COMMITLINT_RULE_CONDITION_ALWAYS: Final = "always"
+
 ZIZMOR_VERSION: Final = "1.31.1"
 OSV_SCANNER_VERSION: Final = "2.7.0"
 HADOLINT_VERSION: Final = "2.15.1"
@@ -69,4 +75,7 @@ NUMPY_RUFF_RULESET: Final = "NPY"
 PANDAS_RUFF_RULESET: Final = "PD"
 
 PRE_COMMIT_LANGUAGE_UNSUPPORTED: Final = "unsupported"
+PRE_COMMIT_LANGUAGE_NODE: Final = "node"
+# Use the developer's PATH node instead of nodeenv-managed downloads.
+PRE_COMMIT_LANGUAGE_VERSION_SYSTEM: Final = "system"
 VIRTUAL_ENV_BINARY_DIR: Final = "./.venv/bin/"

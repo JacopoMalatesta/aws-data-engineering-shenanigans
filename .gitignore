@@ -88,6 +88,7 @@ cython_debug/
 .opencode/
 tmp/
 !/.pre-commit-config.yaml
+!/.commitlintrc.yaml
 !/trivy.yaml
 !/.gitleaks.toml
 !/zizmor.yml
@@ -97,6 +98,7 @@ tmp/
 !/.vscode/extensions.json
 !/.vscode/settings.json
 !/.github/workflows/build.yml
+!/.github/workflows/commitlint.yml
 !/.github/workflows/deploy.yml
 !/.github/workflows/security.yml
 !/.projenrc.py
