@@ -13,10 +13,17 @@ GitHub Actions (push to `main`).
 - **Deployment environments** also live in `projen_config.py`
   (`DEPLOYMENT_ENVIRONMENTS`): one row per environment (a unique AWS
   account ID + region; currently a single `dev` row). `app.py`
-  instantiates one stack per row (`aws-data-engineering-shenanigans-<env>`),
-  and the build and deploy workflows render the rows into their strategy
-  matrices, where they resolve the per-environment OIDC role and region
-  (deploy targets stacks via `cdk deploy "*-<env>"`).
+  instantiates one stack per row (`aws-data-engineering-shenanigans-<env>`).
+  Both the build and deploy workflows expand the rows into one chained
+  job per environment (`build-<env>`, `deploy-<env>`), in row order:
+  each environment runs only after the previous one succeeded, so a dev
+  failure skips every later environment. Each expanded job carries its
+  row as a single-entry strategy matrix, which resolves the
+  per-environment OIDC role and region (deploy targets stacks via
+  `cdk deploy "*-<env>"`). The deploy workflow also carries a
+  concurrency group (`${{ github.workflow }}`, `cancel-in-progress:
+  false`), so a second push to `main` queues behind an in-flight run
+  instead of racing it.
 - `ruff.toml` and `ty.toml` are projen-managed raw files (projen has no
   dedicated components for them).
 - `constants.py` pins the tool versions that `projen_config.py` references.
@@ -141,14 +148,12 @@ Manual one-time changes are now minimal; both were applied via the GitHub
 API as part of this PR (see the PR description for the exact payloads):
 
 1. **Branch rules on `main`** — pushes to `main` require an open PR whose
-   status checks pass (`check`, `build (dev, 925000840053,
-   eu-west-1)`, `scan`, `Validate PR title`), and
-   force-pushes/deletions of `main` are blocked.
+   status checks pass (`check`, `build-dev`, `scan`, `Validate PR
+   title`), and force-pushes/deletions of `main` are blocked.
    Recreate in Settings → Rules → Rulesets if the account ever resets, or
-   via the API call documented in the PR. The `build` check name embeds
-   the environment's matrix row (GitHub joins a leg's row values with
-   commas) and one leg is produced per environment — when a new
-   environment row is added, append its leg's check name to this ruleset.
+   via the API call documented in the PR. One `build-<env>` check is
+   produced per environment — when a new environment row is added,
+   append its check name to this ruleset.
 2. **Native secret scanning** (complements the gitleaks job with
    near-real-time push prevention): Settings → Code security → enable
    *Secret scanning* and *Push protection* (Settings → Code security &

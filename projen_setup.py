@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING, Final, cast
 
 from projen import JsonFile, ObjectFile, Task, TomlFile, YamlFile
 from projen.awscdk import AwsCdkPythonApp
-from projen.github import GitHubOptions, PullRequestLintOptions, SemanticTitleOptions
+from projen.github import (
+    ConcurrencyOptions,
+    GitHubOptions,
+    GithubWorkflow,
+    PullRequestLintOptions,
+    SemanticTitleOptions,
+)
 from projen.github.workflows import (
     Job,
     JobMatrix,
@@ -21,6 +27,7 @@ from projen.vscode import VsCode
 
 from constants import CDK_NAG_VERSION, PYTHON_VERSION
 from projen_config import (
+    DEPLOYMENT_ENVIRONMENTS,
     DEV_DEPS,
     GIT_IGNORE_PATTERNS,
     GITHUB_JOB_STEPS,
@@ -34,7 +41,14 @@ from projen_config import (
     VSCODE_EXTENSIONS,
     VSCODE_SETTINGS,
 )
-from projen_types import FileType, GitHubPermission, JobName, JobStepName, TaskName
+from projen_types import (
+    FileType,
+    GitHubJobSpec,
+    GitHubPermission,
+    JobName,
+    JobStepName,
+    TaskName,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -56,6 +70,10 @@ class MissingPyprojectTomlError(KeyError):
     """The ``pyproject.toml`` file component is absent from the project."""
 
 
+class DuplicateEnvironmentError(ValueError):
+    """``DEPLOYMENT_ENVIRONMENTS`` repeats an environment name."""
+
+
 FILE_CLASSES: Final[dict[FileType, type[ObjectFile]]] = {
     FileType.JSON: JsonFile,
     FileType.TOML: TomlFile,
@@ -71,6 +89,7 @@ PERMISSION_CLASSES: Final[dict[GitHubPermission, JobPermission]] = {
 
 def set_up_project() -> None:
     """Assemble the full project from ``projen_config.py`` and synth it."""
+    _validate_deployment_environments()
     project = _create_project()
     _configure_pyproject(project)
     _add_project_files(project)
@@ -205,10 +224,12 @@ def _configure_editor_tooling(project: AwsCdkPythonApp) -> None:
 def _add_github_workflows(project: AwsCdkPythonApp) -> None:
     """Register the configured workflows and their catalog-defined jobs.
 
+    A ``per_environment`` job renders as one chained job per
+    ``DEPLOYMENT_ENVIRONMENTS`` entry instead of as itself.
+
     Raises:
         RuntimeError: If GitHub integration is disabled for the project.
         UndeclaredStepError: If a job references an undeclared step.
-        UndeclaredJobError: If a workflow references an undeclared job.
     """
     github = project.github
     if github is None:
@@ -220,7 +241,7 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
         for step_name, step_spec in GITHUB_JOB_STEPS.items()
     }
 
-    jobs_by_name: Final[dict[JobName, Job]] = {}
+    jobs_by_name: Final[dict[JobName, list[tuple[str, Job]]]] = {}
     for job_name, job_spec in GITHUB_JOBS.items():
         job_steps: list[JobStep] = []
         for step_name in job_spec["steps"]:
@@ -233,38 +254,124 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
                 raise UndeclaredStepError(msg)
             job_steps.append(step)
 
-        matrix_entries = job_spec.get("matrix")
-        if matrix_entries is None:
-            strategy = None
-        else:
-            strategy = JobStrategy(
-                matrix=JobMatrix(
-                    # Sound cast: the entries serialize as plain string
-                    # mappings; jsii's JobMatrix only accepts those.
-                    include=cast("list[Mapping[str, str]]", matrix_entries)
-                )
+        if job_spec.get("per_environment", False):
+            jobs_by_name[job_name] = _expand_environment_jobs(
+                job_name=job_name, job_spec=job_spec, job_steps=job_steps
             )
-        jobs_by_name[job_name] = Job(
+        else:
+            job = Job(
+                runs_on=job_spec["runs_on"],
+                permissions={
+                    scope: PERMISSION_CLASSES[level]
+                    for scope, level in job_spec["permissions"].items()
+                },
+                steps=job_steps,
+                needs=job_spec.get("needs"),
+            )
+            jobs_by_name[job_name] = [(job_name, job)]
+
+    for workflow_name, workflow_spec in GITHUB_WORKFLOWS.items():
+        concurrency = workflow_spec.get("concurrency")
+        if concurrency is None:
+            workflow = GithubWorkflow(github, workflow_name)
+        else:
+            workflow = GithubWorkflow(
+                github,
+                workflow_name,
+                limit_concurrency=True,
+                concurrency_options=ConcurrencyOptions(
+                    group=concurrency["group"],
+                    cancel_in_progress=concurrency.get("cancel_in_progress", False),
+                ),
+            )
+        workflow.on(**workflow_spec["on"])
+        _add_workflow_jobs(
+            workflow=workflow,
+            job_names=workflow_spec["jobs"],
+            jobs_by_name=jobs_by_name,
+        )
+
+
+def _add_workflow_jobs(
+    *,
+    workflow: GithubWorkflow,
+    job_names: list[JobName],
+    jobs_by_name: dict[JobName, list[tuple[str, Job]]],
+) -> None:
+    """Add one workflow's configured jobs, expanding per-environment jobs.
+
+    Raises:
+        UndeclaredJobError: If the workflow references an undeclared job.
+    """
+    for job_name in job_names:
+        jobs = jobs_by_name.get(job_name)
+        if jobs is None:
+            msg = (
+                f"workflow '{workflow.name}' references an undeclared "
+                f"job '{job_name}'; declare it in GITHUB_JOBS"
+            )
+            raise UndeclaredJobError(msg)
+        for job_id, job in jobs:
+            workflow.add_job(job_id, job)
+
+
+def _expand_environment_jobs(
+    *,
+    job_name: JobName,
+    job_spec: GitHubJobSpec,
+    job_steps: list[JobStep],
+) -> list[tuple[str, Job]]:
+    """Expand a per-environment spec into chained jobs, one per environment.
+
+    Each job keeps the spec's steps, carries a single-entry matrix for
+    its environment (so ``${{ matrix.* }}`` expressions resolve per
+    job) and needs the previous environment's job, so the jobs run in
+    ``DEPLOYMENT_ENVIRONMENTS`` order and a failure skips the rest.
+
+    Returns:
+        Job id and job pairs, in environment order.
+    """
+    expanded: list[tuple[str, Job]] = []
+    previous_job_id: str | None = None
+    for environment in DEPLOYMENT_ENVIRONMENTS:
+        job_id = f"{job_name}-{environment['environment_name']}"
+        needs: list[str] = [*job_spec.get("needs", [])]
+        if previous_job_id is not None:
+            needs.append(previous_job_id)
+        job = Job(
+            name=job_id,
             runs_on=job_spec["runs_on"],
             permissions={
                 scope: PERMISSION_CLASSES[level]
                 for scope, level in job_spec["permissions"].items()
             },
             steps=job_steps,
-            needs=job_spec.get("needs"),
-            strategy=strategy,
-        )
-
-    for workflow_name, workflow_spec in GITHUB_WORKFLOWS.items():
-        workflow = github.add_workflow(workflow_name)
-        workflow.on(**workflow_spec["on"])
-        for job_name in workflow_spec["jobs"]:
-            job = jobs_by_name.get(job_name)
-            if job is None:
-                msg = (
-                    f"workflow '{workflow_name}' references an "
-                    f"undeclared job '{job_name}'; declare it in "
-                    "GITHUB_JOBS"
+            needs=needs or None,
+            strategy=JobStrategy(
+                matrix=JobMatrix(
+                    # Sound cast: the entry serializes as a plain
+                    # string mapping; jsii's JobMatrix only accepts
+                    # those.
+                    include=cast("list[Mapping[str, str]]", [environment])
                 )
-                raise UndeclaredJobError(msg)
-            workflow.add_job(job_name, job)
+            ),
+        )
+        expanded.append((job_id, job))
+        previous_job_id = job_id
+    return expanded
+
+
+def _validate_deployment_environments() -> None:
+    """Fail if ``DEPLOYMENT_ENVIRONMENTS`` repeats an environment name.
+
+    Raises:
+        DuplicateEnvironmentError: If an environment name repeats.
+    """
+    names = [e["environment_name"] for e in DEPLOYMENT_ENVIRONMENTS]
+    duplicates = sorted({e.value for e in names if names.count(e) > 1})
+    if duplicates:
+        msg = (
+            f"DEPLOYMENT_ENVIRONMENTS repeats environment "
+            f"names {duplicates}; they must be unique"
+        )
+        raise DuplicateEnvironmentError(msg)

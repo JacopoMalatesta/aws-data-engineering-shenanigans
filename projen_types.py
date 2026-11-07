@@ -127,6 +127,9 @@ class JobName(StrEnum):
 
     Values render as the YAML job keys; provide distinct values for
     distinct jobs. A job may be referenced by more than one workflow.
+    ``BUILD`` and ``DEPLOY`` never render as job keys themselves: their
+    ``per_environment`` specs expand into ``<job_id>-<environment_name>``
+    jobs, one per ``DEPLOYMENT_ENVIRONMENTS`` entry.
     """
 
     BUILD = "build"
@@ -190,9 +193,10 @@ class GitHubPermission(StrEnum):
 class DeploymentEnvironment(TypedDict):
     """One deployment environment: a unique AWS account ID and region name.
 
-    Consumed by ``app.py`` (one stack per environment) and rendered 1:1 into
-    ``strategy.matrix.include`` of the GitHub jobs that assume the
-    environment's OIDC role and run ``cdk diff``/``cdk deploy``.
+    Consumed by ``app.py`` (one stack per environment) and expanded 1:1
+    into ``per_environment`` GitHub jobs: one chained job per entry, in
+    list order, each carrying its row as a single-entry matrix that
+    resolves ``${{ matrix.* }}`` step expressions.
     """
 
     environment_name: EnvironmentName
@@ -205,15 +209,16 @@ class GitHubJobSpec(TypedDict):
 
     ``GITHUB_JOBS`` keys are the job ids and double as the YAML job
     names. ``steps`` renders into the YAML job in list order. ``needs``
-    and ``matrix`` render as the job's ``needs`` and
-    ``strategy.matrix.include``.
+    renders as the job's ``needs``. ``per_environment`` expands the
+    spec into one chained job per ``DEPLOYMENT_ENVIRONMENTS`` entry
+    instead of rendering the job itself.
     """
 
     runs_on: list[str]
     permissions: dict[str, GitHubPermission]
     steps: list[JobStepName]
     needs: NotRequired[list[JobName]]
-    matrix: NotRequired[list[DeploymentEnvironment]]
+    per_environment: NotRequired[bool]
 
 
 class WorkflowTriggers(TypedDict):
@@ -230,6 +235,17 @@ class WorkflowTriggers(TypedDict):
     workflow_dispatch: NotRequired[dict[str, JsonValue]]
 
 
+class WorkflowConcurrency(TypedDict):
+    """GitHub Actions ``concurrency`` block for one workflow.
+
+    ``cancel_in_progress`` defaults to false — new runs queue behind
+    the in-flight one instead of cancelling it mid-deploy.
+    """
+
+    group: str
+    cancel_in_progress: NotRequired[bool]
+
+
 class GitHubWorkflowSpec(TypedDict):
     """Specification for one GitHub Actions workflow file.
 
@@ -238,11 +254,14 @@ class GitHubWorkflowSpec(TypedDict):
     Both type checkers verify every key against ``GithubWorkflow.on``'s
     keyword parameters, and projen still rejects unknown events at synth
     time, so no extra validation is needed. ``jobs`` lists ``GITHUB_JOBS``
-    keys.
+    keys; a ``per_environment`` job contributes all of its expanded
+    jobs. ``concurrency`` renders the workflow's top-level
+    ``concurrency`` block.
     """
 
     on: WorkflowTriggers
     jobs: list[JobName]
+    concurrency: NotRequired[WorkflowConcurrency]
 
 
 class GitHubJobStepSpec(TypedDict):

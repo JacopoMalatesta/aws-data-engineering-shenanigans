@@ -51,7 +51,8 @@ jobs:
       - name: Package Python code
         id: package_python_code
         run: npx projen@0.104.17 package
-  build:
+  build-dev:
+    name: build-dev
     needs: check
     runs-on: ubuntu-latest
     permissions:

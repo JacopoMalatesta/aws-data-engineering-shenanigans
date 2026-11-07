@@ -635,7 +635,7 @@ GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
     JobName.BUILD: {
         "runs_on": CI_RUNNERS,
         "needs": [JobName.CHECK],
-        "matrix": DEPLOYMENT_ENVIRONMENTS,
+        "per_environment": True,
         "permissions": {
             "contents": GitHubPermission.READ,
             "id_token": GitHubPermission.WRITE,
@@ -666,7 +666,7 @@ GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
     JobName.DEPLOY: {
         "runs_on": CI_RUNNERS,
         "needs": [JobName.CHECK],
-        "matrix": DEPLOYMENT_ENVIRONMENTS,
+        "per_environment": True,
         "permissions": {
             "contents": GitHubPermission.READ,
             "id_token": GitHubPermission.WRITE,
@@ -718,6 +718,10 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
     WorkflowName.DEPLOY: {
         "on": {"push": {"branches": ["main"]}, "workflow_dispatch": {}},
         "jobs": [JobName.CHECK, JobName.DEPLOY],
+        "concurrency": {
+            "group": "${{ github.workflow }}",
+            "cancel_in_progress": False,
+        },
     },
     WorkflowName.SECURITY: {
         "on": {"pull_request": {}, "workflow_dispatch": {}},
