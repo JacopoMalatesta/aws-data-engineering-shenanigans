@@ -115,6 +115,8 @@ jobs:
           } > "$DIFF_BODY_FILE"
           gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
     strategy:
+      max-parallel: 1
+      fail-fast: true
       matrix:
         include:
           - environment_name: dev

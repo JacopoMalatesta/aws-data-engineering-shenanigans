@@ -206,7 +206,10 @@ class GitHubJobSpec(TypedDict):
     ``GITHUB_JOBS`` keys are the job ids and double as the YAML job
     names. ``steps`` renders into the YAML job in list order. ``needs``
     and ``matrix`` render as the job's ``needs`` and
-    ``strategy.matrix.include``.
+    ``strategy.matrix.include``. ``max_parallel`` and ``fail_fast``
+    render into the same strategy block: ``max_parallel: 1`` runs the
+    matrix legs one at a time, in include order, and ``fail_fast``
+    cancels the remaining queued or in-progress legs on a failure.
     """
 
     runs_on: list[str]
@@ -214,6 +217,8 @@ class GitHubJobSpec(TypedDict):
     steps: list[JobStepName]
     needs: NotRequired[list[JobName]]
     matrix: NotRequired[list[DeploymentEnvironment]]
+    max_parallel: NotRequired[int]
+    fail_fast: NotRequired[bool]
 
 
 class WorkflowTriggers(TypedDict):
@@ -238,11 +243,14 @@ class GitHubWorkflowSpec(TypedDict):
     Both type checkers verify every key against ``GithubWorkflow.on``'s
     keyword parameters, and projen still rejects unknown events at synth
     time, so no extra validation is needed. ``jobs`` lists ``GITHUB_JOBS``
-    keys.
+    keys. ``limit_concurrency`` enables the workflow's concurrency group,
+    which projen defaults to the workflow name with ``cancel-in-progress:
+    false`` — a second run queues behind the in-flight one.
     """
 
     on: WorkflowTriggers
     jobs: list[JobName]
+    limit_concurrency: NotRequired[bool]
 
 
 class GitHubJobStepSpec(TypedDict):
