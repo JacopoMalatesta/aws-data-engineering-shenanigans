@@ -9,7 +9,12 @@ from typing import TYPE_CHECKING, Final, cast
 
 from projen import JsonFile, ObjectFile, Task, TomlFile, YamlFile
 from projen.awscdk import AwsCdkPythonApp
-from projen.github import GitHubOptions, PullRequestLintOptions, SemanticTitleOptions
+from projen.github import (
+    GitHubOptions,
+    GithubWorkflow,
+    PullRequestLintOptions,
+    SemanticTitleOptions,
+)
 from projen.github.workflows import (
     Job,
     JobMatrix,
@@ -242,7 +247,9 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
                     # Sound cast: the entries serialize as plain string
                     # mappings; jsii's JobMatrix only accepts those.
                     include=cast("list[Mapping[str, str]]", matrix_entries)
-                )
+                ),
+                fail_fast=job_spec.get("fail_fast"),
+                max_parallel=job_spec.get("max_parallel"),
             )
         jobs_by_name[job_name] = Job(
             runs_on=job_spec["runs_on"],
@@ -256,7 +263,11 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
         )
 
     for workflow_name, workflow_spec in GITHUB_WORKFLOWS.items():
-        workflow = github.add_workflow(workflow_name)
+        workflow = GithubWorkflow(
+            github,
+            workflow_name,
+            limit_concurrency=workflow_spec.get("limit_concurrency", False),
+        )
         workflow.on(**workflow_spec["on"])
         for job_name in workflow_spec["jobs"]:
             job = jobs_by_name.get(job_name)
