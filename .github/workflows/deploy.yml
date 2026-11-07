@@ -6,6 +6,9 @@ on:
     branches:
       - main
   workflow_dispatch: {}
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -98,6 +101,8 @@ jobs:
         id: cdk_deploy
         run: npx projen@0.104.17 deploy "*-${{ matrix.environment_name }}"
     strategy:
+      max-parallel: 1
+      fail-fast: true
       matrix:
         include:
           - environment_name: dev

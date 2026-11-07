@@ -14,9 +14,13 @@ GitHub Actions (push to `main`).
   (`DEPLOYMENT_ENVIRONMENTS`): one row per environment (a unique AWS
   account ID + region; currently a single `dev` row). `app.py`
   instantiates one stack per row (`aws-data-engineering-shenanigans-<env>`),
-  and the build and deploy workflows render the rows into their strategy
-  matrices, where they resolve the per-environment OIDC role and region
-  (deploy targets stacks via `cdk deploy "*-<env>"`).
+  and the build and deploy workflows render the rows into matrix
+  strategy legs that resolve the per-environment OIDC role and region
+  (deploy targets stacks via `cdk deploy "*-<env>"`). Legs run one at a
+  time in row order (`max-parallel: 1`), and `fail-fast: true` cancels
+  the remaining queued legs when one fails, so a dev failure skips every
+  later environment. The deploy workflow also queues a second push to
+  `main` behind any in-flight run (concurrency group, non-cancelling).
 - `ruff.toml` and `ty.toml` are projen-managed raw files (projen has no
   dedicated components for them).
 - `constants.py` pins the tool versions that `projen_config.py` references.
