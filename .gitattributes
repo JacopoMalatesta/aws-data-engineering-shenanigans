@@ -4,6 +4,7 @@
 /.checkov.yaml linguist-generated
 /.commitlintrc.yaml linguist-generated
 /.gitattributes linguist-generated
+/.github/actionlint.yaml linguist-generated
 /.github/workflows/build.yml linguist-generated
 /.github/workflows/commitlint.yml linguist-generated
 /.github/workflows/deploy.yml linguist-generated
