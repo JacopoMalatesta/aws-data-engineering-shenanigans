@@ -18,6 +18,7 @@ from constants import (
     COMMITLINT_CONFIG_CONVENTIONAL_VERSION,
     COMMITLINT_RULE_CONDITION_ALWAYS,
     COMMITLINT_RULE_SEVERITY_ERROR,
+    DEPTRY_RULE_MISPLACED_DEV_DEPENDENCY,
     DJANGO_RUFF_RULESET,
     FASTAPI_RUFF_RULESET,
     GITLEAKS_LINUX_X64_TARBALL_SHA256,
@@ -93,6 +94,7 @@ VSCODE_SETTINGS: Final[dict[str, JsonValue]] = {
 
 DEV_DEPS: Final = [
     "basedpyright@1.40.2",
+    "deptry@0.25.1",
     "pre-commit@4.6.2",
     "pytest-cov@7.1.0",
     "ruff@0.17.2",
@@ -200,6 +202,10 @@ PYPROJECT_TOOL_SECTIONS: Final = {
             "**/__pycache__",
         ],
     },
+    # DEP004: projen is generator-injected and imported only by dev-only scripts.
+    "deptry": {
+        "per_rule_ignores": {DEPTRY_RULE_MISPLACED_DEV_DEPENDENCY: ["projen"]},
+    },
     "pytest.ini_options": {
         "addopts": (
             "-vv -ra --durations=10 "
@@ -231,6 +237,10 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
         "description": "Static analysis with basedpyright",
         "exec": "basedpyright",
     },
+    TaskName.PYTHON_DEPENDENCY_LINT: {
+        "description": "Check declared dependencies against imported modules with deptry",
+        "exec": "deptry .",
+    },
     TaskName.PYTHON_TYPECHECK: {
         "description": "Type check with ty",
         "exec": "ty check --error-on-warning .",
@@ -242,6 +252,7 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             TaskName.PYTHON_FORMAT_CHECK,
             TaskName.PYTHON_TYPECHECK,
             TaskName.PYTHON_STATIC_ANALYSIS,
+            TaskName.PYTHON_DEPENDENCY_LINT,
         ],
     },
     TaskName.CDK_SYNTH: {
@@ -351,6 +362,15 @@ PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
         "language": PRE_COMMIT_LANGUAGE_UNSUPPORTED,
         "pass_filenames": False,
         "files": r"\.py$",
+    },
+    {
+        "id": "deptry-check",
+        "name": "deptry",
+        "entry": f"{VIRTUAL_ENV_BINARY_DIR}deptry",
+        "args": ["."],
+        "language": PRE_COMMIT_LANGUAGE_UNSUPPORTED,
+        "pass_filenames": False,
+        "files": r"\.py$|pyproject\.toml$",
     },
     {
         "id": "commitlint",
@@ -645,6 +665,9 @@ GITHUB_JOB_STEPS: Final[dict[JobStepName, GitHubJobStepSpec]] = {
     JobStepName.PYTHON_STATIC_ANALYSIS: {
         "run": f"{PROJEN_RUN} {TaskName.PYTHON_STATIC_ANALYSIS}",
     },
+    JobStepName.PYTHON_DEPENDENCY_LINT: {
+        "run": f"{PROJEN_RUN} {TaskName.PYTHON_DEPENDENCY_LINT}",
+    },
     JobStepName.PYTHON_TYPECHECK: {
         "run": f"{PROJEN_RUN} {TaskName.PYTHON_TYPECHECK}",
     },
@@ -667,6 +690,7 @@ GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
             JobStepName.PYTHON_FORMAT_CHECK,
             JobStepName.PYTHON_TYPECHECK,
             JobStepName.PYTHON_STATIC_ANALYSIS,
+            JobStepName.PYTHON_DEPENDENCY_LINT,
             JobStepName.PYTHON_UNIT_TESTS,
             JobStepName.PYTHON_PACKAGE,
         ],

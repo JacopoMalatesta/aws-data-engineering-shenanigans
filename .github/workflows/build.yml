@@ -45,6 +45,9 @@ jobs:
       - name: Python static analysis
         id: python_static_analysis
         run: npx projen@0.104.17 static-analysis
+      - name: Python dependency lint
+        id: python_dependency_lint
+        run: npx projen@0.104.17 dependency-lint
       - name: Python unit tests
         id: python_unit_tests
         run: npx projen@0.104.17 test

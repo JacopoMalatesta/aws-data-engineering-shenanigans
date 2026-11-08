@@ -41,6 +41,14 @@ repos:
         language: unsupported
         pass_filenames: false
         files: \.py$
+      - id: deptry-check
+        name: deptry
+        entry: ./.venv/bin/deptry
+        args:
+          - .
+        language: unsupported
+        pass_filenames: false
+        files: \.py$|pyproject\.toml$
       - id: commitlint
         name: commitlint
         entry: commitlint

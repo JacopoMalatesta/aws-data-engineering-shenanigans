@@ -6,6 +6,11 @@
       "type": "devenv"
     },
     {
+      "name": "deptry",
+      "version": "0.25.1",
+      "type": "devenv"
+    },
+    {
       "name": "pre-commit",
       "version": "4.6.2",
       "type": "devenv"
