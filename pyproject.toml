@@ -18,6 +18,7 @@ dependencies = [
 [dependency-groups]
 dev = [
   "basedpyright==1.40.2",
+  "deptry==0.25.1",
   "pre-commit==4.6.2",
   "projen==0.104.17",
   "pytest-cov==7.1.0",
@@ -92,6 +93,9 @@ typeCheckingMode = "all"
 enableBasedFeatures = true
 failOnWarnings = true
 exclude = [ "cdk.out", "dist", ".venv", "node_modules", "**/__pycache__" ]
+
+[tool.deptry.per_rule_ignores]
+DEP004 = [ "projen" ]
 
 [tool.pytest.ini_options]
 addopts = "-vv -ra --durations=10 --cov=aws_data_engineering_shenanigans --cov-report=term-missing"
