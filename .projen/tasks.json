@@ -304,6 +304,9 @@
           "spawn": "security:git-hub-actions-scan"
         },
         {
+          "spawn": "security:git-hub-actions-lint"
+        },
+        {
           "spawn": "security:sca-multi-language"
         },
         {
@@ -317,6 +320,15 @@
       "steps": [
         {
           "exec": "find . -name 'Dockerfile*' -not -path './.venv/*' -not -path '*/node_modules/*' -exec hadolint {} +"
+        }
+      ]
+    },
+    "security:git-hub-actions-lint": {
+      "name": "security:git-hub-actions-lint",
+      "description": "Lint GitHub Actions workflows with actionlint",
+      "steps": [
+        {
+          "exec": "actionlint"
         }
       ]
     },

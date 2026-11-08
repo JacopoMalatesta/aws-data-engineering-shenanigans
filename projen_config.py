@@ -8,6 +8,8 @@ from typing import Final, TypedDict, cast
 from aws_cdk.region_info import RegionInfo
 
 from constants import (
+    ACTIONLINT_LINUX_AMD64_TARBALL_SHA256,
+    ACTIONLINT_VERSION,
     AIRFLOW_RUFF_RULESET,
     AWS_CREDENTIALS_V6_PIN,
     CHECKOUT_V7_PIN,
@@ -276,6 +278,10 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
         "description": "Static analysis of GitHub Actions workflows",
         "exec": "zizmor .",
     },
+    TaskName.SECURITY_GITHUB_ACTIONS_LINT: {
+        "description": "Lint GitHub Actions workflows with actionlint",
+        "exec": "actionlint",
+    },
     TaskName.SECURITY_SCA_MULTI_LANGUAGE: {
         "description": "Scan dependencies for known vulnerabilities (OSV)",
         "exec": "osv-scanner scan source --recursive .",
@@ -299,6 +305,7 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             TaskName.SECURITY_MISCONFIG_SCAN,
             TaskName.SECURITY_IAC_SCAN,
             TaskName.SECURITY_GITHUB_ACTIONS_SCAN,
+            TaskName.SECURITY_GITHUB_ACTIONS_LINT,
             TaskName.SECURITY_SCA_MULTI_LANGUAGE,
             TaskName.SECURITY_DOCKERFILE_LINT,
         ],
@@ -418,6 +425,23 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
             }
         },
     },
+    # rhysd/actionlint#693: parallel-step keys ("background", "wait-all")
+    # are unrecognized by actionlint v1.7.12; the run/uses error is the
+    # derived "wait-all" finding. Scope both to the scan job and drop
+    # this entry once #694 ships.
+    ".github/actionlint.yaml": {
+        "file_type": FileType.YAML,
+        "obj": {
+            "paths": {
+                ".github/workflows/security.yml": {
+                    "ignore": [
+                        'unexpected key "background"',
+                        'step must run script with "run" section or run action with "uses" section',
+                    ],
+                },
+            },
+        },
+    },
     ".hadolint.yaml": {
         "file_type": FileType.YAML,
         "obj": {},
@@ -506,6 +530,21 @@ GITHUB_JOB_STEPS: Final[dict[JobStepName, GitHubJobStepSpec]] = {
             "sudo install -m 0755 /tmp/zizmor /usr/local/bin/zizmor\n"
             "zizmor --version\n"
             f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_SCAN}"
+        ),
+    },
+    JobStepName.GITHUB_ACTIONS_LINT: {
+        "background": True,
+        "run": (
+            "curl -fsSL -o /tmp/actionlint.tar.gz "
+            "https://github.com/rhysd/actionlint/releases/download/"
+            f"v{ACTIONLINT_VERSION}/"
+            f"actionlint_{ACTIONLINT_VERSION}_linux_amd64.tar.gz\n"
+            f"printf '%s  %s\\n' {ACTIONLINT_LINUX_AMD64_TARBALL_SHA256}"
+            " /tmp/actionlint.tar.gz | sha256sum --check --strict -\n"
+            "tar -xzf /tmp/actionlint.tar.gz -C /tmp\n"
+            "sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint\n"
+            "actionlint --version\n"
+            f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_LINT}"
         ),
     },
     JobStepName.IAC_SCAN: {
@@ -703,6 +742,7 @@ GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
             JobStepName.SCA_PYTHON,
             JobStepName.IAC_SCAN,
             JobStepName.GITHUB_ACTIONS_SCAN,
+            JobStepName.GITHUB_ACTIONS_LINT,
             JobStepName.SCA_MULTI_LANGUAGE,
             JobStepName.DOCKERFILE_SCAN,
             JobStepName.WAIT_FOR_SCANS,

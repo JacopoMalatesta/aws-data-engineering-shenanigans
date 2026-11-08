@@ -92,6 +92,7 @@ tmp/
 !/trivy.yaml
 !/.gitleaks.toml
 !/zizmor.yml
+!/.github/actionlint.yaml
 !/.hadolint.yaml
 !/osv-scanner.toml
 !/.checkov.yaml

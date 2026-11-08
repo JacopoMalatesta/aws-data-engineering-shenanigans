@@ -25,9 +25,9 @@ GitHub Actions (push to `main`).
   dedicated components for them).
 - `constants.py` pins the tool versions that `projen_config.py` references.
 - The security scanner policy files (`.checkov.yaml`, `trivy.yaml`,
-  `.gitleaks.toml`, `uv.toml`, `zizmor.yml`, `.hadolint.yaml`,
-  `osv-scanner.toml`) are projen-managed via `projen_config.py`
-  (see the Security checks section).
+  `.gitleaks.toml`, `uv.toml`, `zizmor.yml`, `.github/actionlint.yaml`,
+  `.hadolint.yaml`, `osv-scanner.toml`) are projen-managed via
+  `projen_config.py` (see the Security checks section).
 
 ## Local checks (pre-commit)
 
@@ -71,10 +71,10 @@ commitlint's built-in ignores.
 
 ## Security checks
 
-Eight scanners run in parallel (as background steps) in the `scan` job of
+Nine scanners run in parallel (as background steps) in the `scan` job of
 the `security` workflow on every pull request, and locally via the
 `security` task (each scanner has its own `security:<name>` task). All
-tool versions are pinned in `projen_config.py`; CI downloads the six
+tool versions are pinned in `projen_config.py`; CI downloads the seven
 standalone binaries digest-pinned from their GitHub releases, so a
 silently repointed release URL cannot swap a binary. The `uv audit` run
 goes through the pinned uv itself, which reuses the lockfile.
@@ -86,7 +86,8 @@ goes through the pinned uv itself, which reuses the lockfile.
 | `misconfig-scan`     | `trivy`              | workspace files     | `trivy.yaml`     | `security:misconfig-scan`      |
 | `sca-python`         | `uv audit` (preview) | `uv.lock`           | `uv.toml`        | `security:sca-python`          |
 | `iac-scan`           | `checkov`            | synthesized CF template (`cdk.out/`) | `.checkov.yaml` | `security:iac-scan` |
-| `github-actions-scan` | `zizmor`            | `.github/workflows` | `zizmor.yml`     | `security:github-actions-scan` |
+| `github-actions-scan` | `zizmor`            | `.github/workflows` | `zizmor.yml`     | `security:git-hub-actions-scan` |
+| `github-actions-lint` | `actionlint`        | `.github/workflows` | `.github/actionlint.yaml` | `security:git-hub-actions-lint` |
 | `sca-multi-language` | `osv-scanner`        | manifests and lockfiles | `osv-scanner.toml` | `security:sca-multi-language` |
 | `dockerfile-lint`    | `hadolint`           | Dockerfiles         | `.hadolint.yaml` | `security:dockerfile-lint`     |
 
@@ -135,8 +136,8 @@ code needs lookups, add `JobStepName.AWS_CREDENTIALS` (declared once in
 vacuous until resources are added. The full investigation notes live in
 PR #5.
 Local prerequisites: `gitleaks`, `opengrep`, `trivy`, `zizmor`,
-`osv-scanner` and `hadolint` (standalone binaries) plus `checkov` (via
-`uvx`) must be on `PATH` to run their tasks (pin the versions used
+`actionlint`, `osv-scanner` and `hadolint` (standalone binaries) plus
+`checkov` (via `uvx`) must be on `PATH` to run their tasks (pin the versions used
 by CI - see the install steps in
 `.github/workflows/security.yml`). The `uv` version used by your
 shell only has to satisfy `uv audit`; the `checkov` task also needs the

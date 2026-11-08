@@ -87,6 +87,16 @@ jobs:
           zizmor --version
           npx projen@0.104.17 security:git-hub-actions-scan
         background: true
+      - name: GitHub Actions lint
+        id: github_actions_lint
+        run: |-
+          curl -fsSL -o /tmp/actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          printf '%s  %s\n' 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 /tmp/actionlint.tar.gz | sha256sum --check --strict -
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
+          actionlint --version
+          npx projen@0.104.17 security:git-hub-actions-lint
+        background: true
       - name: SCA multi-language
         id: sca_multi-language
         run: |-
