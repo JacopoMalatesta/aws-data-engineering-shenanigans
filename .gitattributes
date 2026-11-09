@@ -21,6 +21,7 @@
 /.projen/tasks.json linguist-generated
 /.vscode/extensions.json linguist-generated linguist-language=JSON-with-Comments
 /.vscode/settings.json linguist-generated
+/.yamllint.yaml linguist-generated
 /cdk.json linguist-generated
 /osv-scanner.toml linguist-generated
 /pyproject.toml linguist-generated

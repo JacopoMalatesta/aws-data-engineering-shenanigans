@@ -323,6 +323,9 @@
         },
         {
           "spawn": "security:dockerfile-lint"
+        },
+        {
+          "spawn": "security:yaml-lint"
         }
       ]
     },
@@ -404,6 +407,15 @@
       "steps": [
         {
           "exec": "gitleaks detect --no-banner --config .gitleaks.toml"
+        }
+      ]
+    },
+    "security:yaml-lint": {
+      "name": "security:yaml-lint",
+      "description": "Lint YAML files with yamllint",
+      "steps": [
+        {
+          "exec": "uvx --isolated yamllint@1.38.0 ."
         }
       ]
     },
