@@ -4,6 +4,7 @@
     ".commitlintrc.yaml",
     ".gitattributes",
     ".github/actionlint.yaml",
+    ".github/dependabot.yml",
     ".github/workflows/build.yml",
     ".github/workflows/commitlint.yml",
     ".github/workflows/deploy.yml",

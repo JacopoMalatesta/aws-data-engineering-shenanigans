@@ -171,6 +171,7 @@ class JobStepName(StrEnum):
     PYTHON_PACKAGE = "Package Python code"
     POST_CDK_DIFF = "Post CDK diff"
     REGENERATE_PROJEN_FILES = "Regenerate projen files"
+    REGEN_DRIFT_CHECK = "Regeneration drift check"
     SAST_SCAN = "SAST scan"
     SCA_MULTI_LANGUAGE = "SCA multi-language"
     SCA_PYTHON = "SCA Python"
