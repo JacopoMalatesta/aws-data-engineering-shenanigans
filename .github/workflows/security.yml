@@ -115,6 +115,12 @@ jobs:
           hadolint --version
           npx projen@0.104.17 security:dockerfile-lint
         background: true
+      - name: YAML lint
+        id: yaml_lint
+        run: |-
+          uvx --isolated yamllint@1.38.0 --version
+          npx projen@0.104.17 security:yaml-lint
+        background: true
       - name: Wait for scans
         id: wait_for_scans
         wait-all: true

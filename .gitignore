@@ -94,6 +94,7 @@ tmp/
 !/zizmor.yml
 !/.github/actionlint.yaml
 !/.hadolint.yaml
+!/.yamllint.yaml
 !/osv-scanner.toml
 !/.checkov.yaml
 !/.github/dependabot.yml

@@ -63,6 +63,7 @@ class TaskName(StrEnum):
     SECURITY_SCA_MULTI_LANGUAGE = "security:sca-multi-language"
     SECURITY_SCA_PYTHON = "security:sca-python"
     SECURITY_SECRET_SCAN = "security:secret-scan"  # ruff: ignore[hardcoded-password-string]
+    SECURITY_YAML_LINT = "security:yaml-lint"
     PYTHON_STATIC_ANALYSIS = "static-analysis"
     CDK_SYNTH = "synth"
     CDK_SYNTH_SILENT = "synth:silent"
@@ -183,6 +184,7 @@ class JobStepName(StrEnum):
     PYTHON_TYPECHECK = "Python typecheck"
     PYTHON_UNIT_TESTS = "Python unit tests"
     WAIT_FOR_SCANS = "Wait for scans"
+    YAML_LINT = "YAML lint"
 
 
 class GitHubPermission(StrEnum):

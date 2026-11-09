@@ -43,6 +43,7 @@ from constants import (
     TRIVY_LINUX_64BIT_TARBALL_SHA256,
     TRIVY_VERSION,
     VIRTUAL_ENV_BINARY_DIR,
+    YAMLLINT_VERSION,
     ZIZMOR_LINUX_X64_TARBALL_SHA256,
     ZIZMOR_VERSION,
 )
@@ -304,6 +305,11 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             "-not -path '*/node_modules/*' -exec hadolint {} +"
         ),
     },
+    # PyPI-only tool: uvx (isolated) instead of the curl/sha256 binary pattern.
+    TaskName.SECURITY_YAML_LINT: {
+        "description": "Lint YAML files with yamllint",
+        "exec": f"uvx --isolated yamllint@{YAMLLINT_VERSION} .",
+    },
     TaskName.SECURITY: {
         "description": (
             "Run all security scanners: dependency audit, secret history, "
@@ -319,6 +325,7 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             TaskName.SECURITY_GITHUB_ACTIONS_LINT,
             TaskName.SECURITY_SCA_MULTI_LANGUAGE,
             TaskName.SECURITY_DOCKERFILE_LINT,
+            TaskName.SECURITY_YAML_LINT,
         ],
     },
 }
@@ -466,6 +473,31 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
         "file_type": FileType.YAML,
         "obj": {},
     },
+    ".yamllint.yaml": {
+        "file_type": FileType.YAML,
+        "obj": {
+            "extends": "default",
+            # yamllint ignores .gitignore: skip vendored/generated trees.
+            "ignore": (
+                ".venv/\n"
+                "node_modules/\n"
+                "cdk.out/\n"
+                ".projen/\n"
+                "dist/\n"
+                ".pytest_cache/\n"
+                ".ruff_cache/\n"
+                ".opencode/\n"
+                ".git/"
+            ),
+            "rules": {
+                # GH Actions 'on:' key trips the truthy check.
+                "truthy": {"check-keys": False},
+                # Projen never emits a leading '---'.
+                "document-start": "disable",
+                "line-length": {"max": 160},
+            },
+        },
+    },
     "osv-scanner.toml": {
         "file_type": FileType.TOML,
         "obj": {},
@@ -558,6 +590,13 @@ GITHUB_JOB_STEPS: Final[dict[JobStepName, GitHubJobStepSpec]] = {
             "/usr/local/bin/hadolint\n"
             "hadolint --version\n"
             f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
+        ),
+    },
+    JobStepName.YAML_LINT: {
+        "background": True,
+        "run": (
+            f"uvx --isolated yamllint@{YAMLLINT_VERSION} --version\n"
+            f"{PROJEN_RUN} {TaskName.SECURITY_YAML_LINT}"
         ),
     },
     JobStepName.PYTHON_FORMAT_CHECK: {
@@ -797,6 +836,7 @@ GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
             JobStepName.GITHUB_ACTIONS_LINT,
             JobStepName.SCA_MULTI_LANGUAGE,
             JobStepName.DOCKERFILE_SCAN,
+            JobStepName.YAML_LINT,
             JobStepName.WAIT_FOR_SCANS,
         ],
     },
