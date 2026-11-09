@@ -66,6 +66,9 @@ HADOLINT_LINUX_X86_64_SHA256: Final = (
     "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
 )
 
+# Dependabot needs release-tag commits: untagged SHAs drift to the branch
+# head (dependabot-core#14716). No "#" suffixes — projen would quote them,
+# breaking the rendered ref.
 CHECKOUT_V7_PIN: Final = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 SETUP_UV_V10_PIN: Final = "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2"
 SETUP_NODE_V7_PIN: Final = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"

@@ -474,6 +474,32 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
         "file_type": FileType.YAML,
         "obj": {"framework": ["cloudformation"], "directory": "cdk.out"},
     },
+    ".github/dependabot.yml": {
+        "file_type": FileType.YAML,
+        "obj": {
+            "version": 2,
+            "updates": [
+                {
+                    "package-ecosystem": "github-actions",
+                    "directory": "/",
+                    "schedule": {"interval": "weekly"},
+                    "cooldown": {"default-days": 7},
+                    "groups": {"actions": {"patterns": ["*"]}},
+                    "open-pull-requests-limit": 5,
+                    "commit-message": {"prefix": "chore(deps)", "include": "scope"},
+                },
+                {
+                    "package-ecosystem": "uv",
+                    "directory": "/",
+                    "schedule": {"interval": "weekly"},
+                    "cooldown": {"default-days": 7},
+                    "groups": {"python": {"patterns": ["*"]}},
+                    "open-pull-requests-limit": 5,
+                    "commit-message": {"prefix": "chore(deps)", "include": "scope"},
+                },
+            ],
+        },
+    },
 }
 
 DEPLOYMENT_ENVIRONMENTS: Final[list[DeploymentEnvironment]] = [
@@ -605,6 +631,7 @@ GITHUB_JOB_STEPS: Final[dict[JobStepName, GitHubJobStepSpec]] = {
     JobStepName.REGENERATE_PROJEN_FILES: {
         "run": f"{PROJEN_RUN} --no-post --debug",
     },
+    JobStepName.REGEN_DRIFT_CHECK: {"run": "git diff --exit-code"},
     JobStepName.SAST_SCAN: {
         "background": True,
         "run": (
@@ -686,6 +713,7 @@ GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
             JobStepName.INSTALL_PYTHON_DEPENDENCIES,
             JobStepName.INSTALL_PROJEN_CLI,
             JobStepName.REGENERATE_PROJEN_FILES,
+            JobStepName.REGEN_DRIFT_CHECK,
             JobStepName.PYTHON_LINT,
             JobStepName.PYTHON_FORMAT_CHECK,
             JobStepName.PYTHON_TYPECHECK,

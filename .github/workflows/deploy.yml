@@ -39,6 +39,9 @@ jobs:
       - name: Regenerate projen files
         id: regenerate_projen_files
         run: npx projen@0.104.17 --no-post --debug
+      - name: Regeneration drift check
+        id: regeneration_drift_check
+        run: git diff --exit-code
       - name: Python lint
         id: python_lint
         run: npx projen@0.104.17 lint
