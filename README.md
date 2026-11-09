@@ -9,7 +9,11 @@ GitHub Actions (push to `main`).
   a thin entry shim over it; shared enums live in `projen_types.py` and
   `projen_setup.py` assembles the project from the config. Edit the
   config, then run `npx projen` to re-synthesize every generated file.
-  Generated files are read-only on disk — never hand-edit them.
+  Generated files are read-only on disk — never hand-edit them. Specs
+  shared by more than one job are hoisted into named constants
+  (`*_STEP`, plus the `_SETUP`/`_SETUP_CDK` preludes); a job's `steps`
+  mapping unpacks its prelude first, so business steps follow in
+  written order.
 - **Deployment environments** also live in `projen_config.py`
   (`DEPLOYMENT_ENVIRONMENTS`): one row per environment (a unique AWS
   account ID + region; currently a single `dev` row). `app.py`
@@ -131,8 +135,8 @@ cfn_resource.add_metadata("checkov", {
 The sample SQS queue was removed, so CKV_AWS_27 / trivy AWS-0096 no
 longer apply. The `IaC scan` step synthesizes `cdk.out/` without AWS
 auth (the stack is empty and uses no context lookups); if future CDK
-code needs lookups, add `JobStepName.AWS_CREDENTIALS` (declared once in
-`GITHUB_JOB_STEPS`) to that job's step list in `projen_config.py`. The scan is
+code needs lookups, add `JobStepName.AWS_CREDENTIALS: AWS_CREDENTIALS_STEP`
+to that job's `steps` mapping in `projen_config.py`. The scan is
 vacuous until resources are added. The full investigation notes live in
 PR #5.
 Local prerequisites: `gitleaks`, `opengrep`, `trivy`, `zizmor`,

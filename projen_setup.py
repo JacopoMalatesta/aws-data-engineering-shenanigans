@@ -28,8 +28,6 @@ from constants import CDK_NAG_VERSION, PYTHON_VERSION
 from projen_config import (
     DEV_DEPS,
     GIT_IGNORE_PATTERNS,
-    GITHUB_JOB_STEPS,
-    GITHUB_JOBS,
     GITHUB_WORKFLOWS,
     PROJECT_FILES,
     PROJECT_SPEC,
@@ -39,7 +37,7 @@ from projen_config import (
     VSCODE_EXTENSIONS,
     VSCODE_SETTINGS,
 )
-from projen_types import FileType, GitHubPermission, JobName, JobStepName, TaskName
+from projen_types import FileType, GitHubPermission, TaskName
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -49,12 +47,8 @@ class UndeclaredSubtaskError(KeyError):
     """A ``ProjenTaskSpec`` spawns a task neither declared nor built-in."""
 
 
-class UndeclaredStepError(KeyError):
-    """A ``GitHubJobSpec`` references a step absent from ``GITHUB_JOB_STEPS``."""
-
-
 class UndeclaredJobError(KeyError):
-    """A ``GitHubWorkflowSpec`` references a job absent from ``GITHUB_JOBS``."""
+    """A ``GitHubJobSpec`` needs a job absent from its own workflow."""
 
 
 class MissingPyprojectTomlError(KeyError):
@@ -208,59 +202,17 @@ def _configure_editor_tooling(project: AwsCdkPythonApp) -> None:
 
 
 def _add_github_workflows(project: AwsCdkPythonApp) -> None:
-    """Register the configured workflows and their catalog-defined jobs.
+    """Register the configured workflows and their inline jobs.
 
     Raises:
         RuntimeError: If GitHub integration is disabled for the project.
-        UndeclaredStepError: If a job references an undeclared step.
-        UndeclaredJobError: If a workflow references an undeclared job.
+        UndeclaredJobError: If a job's ``needs`` lists a job absent from
+            its own workflow.
     """
     github = project.github
     if github is None:
         msg = "github workflows should be enabled for this project"
         raise RuntimeError(msg)
-
-    steps_by_name: Final[dict[JobStepName, JobStep]] = {
-        step_name: JobStep(name=step_name, **step_spec)
-        for step_name, step_spec in GITHUB_JOB_STEPS.items()
-    }
-
-    jobs_by_name: Final[dict[JobName, Job]] = {}
-    for job_name, job_spec in GITHUB_JOBS.items():
-        job_steps: list[JobStep] = []
-        for step_name in job_spec["steps"]:
-            step = steps_by_name.get(step_name)
-            if step is None:
-                msg = (
-                    f"job '{job_name}' references undeclared step "
-                    f"'{step_name}'; declare every step in GITHUB_JOB_STEPS"
-                )
-                raise UndeclaredStepError(msg)
-            job_steps.append(step)
-
-        matrix_entries = job_spec.get("matrix")
-        if matrix_entries is None:
-            strategy = None
-        else:
-            strategy = JobStrategy(
-                matrix=JobMatrix(
-                    # Sound cast: the entries serialize as plain string
-                    # mappings; jsii's JobMatrix only accepts those.
-                    include=cast("list[Mapping[str, str]]", matrix_entries)
-                ),
-                fail_fast=job_spec.get("fail_fast"),
-                max_parallel=job_spec.get("max_parallel"),
-            )
-        jobs_by_name[job_name] = Job(
-            runs_on=job_spec["runs_on"],
-            permissions={
-                scope: PERMISSION_CLASSES[level]
-                for scope, level in job_spec["permissions"].items()
-            },
-            steps=job_steps,
-            needs=job_spec.get("needs"),
-            strategy=strategy,
-        )
 
     for workflow_name, workflow_spec in GITHUB_WORKFLOWS.items():
         workflow = GithubWorkflow(
@@ -269,13 +221,42 @@ def _add_github_workflows(project: AwsCdkPythonApp) -> None:
             limit_concurrency=workflow_spec.get("limit_concurrency", False),
         )
         workflow.on(**workflow_spec["on"])
-        for job_name in workflow_spec["jobs"]:
-            job = jobs_by_name.get(job_name)
-            if job is None:
+        for job_name, job_spec in workflow_spec["jobs"].items():
+            if any(
+                need not in workflow_spec["jobs"] for need in job_spec.get("needs", [])
+            ):
                 msg = (
-                    f"workflow '{workflow_name}' references an "
-                    f"undeclared job '{job_name}'; declare it in "
-                    "GITHUB_JOBS"
+                    f"job '{job_name}' needs a sibling job absent from "
+                    "the same workflow's jobs mapping"
                 )
                 raise UndeclaredJobError(msg)
-            workflow.add_job(job_name, job)
+
+            matrix_entries = job_spec.get("matrix")
+            if matrix_entries is None:
+                strategy = None
+            else:
+                strategy = JobStrategy(
+                    matrix=JobMatrix(
+                        # Sound cast: the entries serialize as plain string
+                        # mappings; jsii's JobMatrix only accepts those.
+                        include=cast("list[Mapping[str, str]]", matrix_entries)
+                    ),
+                    fail_fast=job_spec.get("fail_fast"),
+                    max_parallel=job_spec.get("max_parallel"),
+                )
+            workflow.add_job(
+                job_name,
+                Job(
+                    runs_on=job_spec["runs_on"],
+                    permissions={
+                        scope: PERMISSION_CLASSES[level]
+                        for scope, level in job_spec["permissions"].items()
+                    },
+                    steps=[
+                        JobStep(name=step_name, **step_spec)
+                        for step_name, step_spec in job_spec["steps"].items()
+                    ],
+                    needs=job_spec.get("needs"),
+                    strategy=strategy,
+                ),
+            )
