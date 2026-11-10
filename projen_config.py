@@ -3,7 +3,7 @@
 This module stores configuration only. It never creates projen resources.
 """
 
-from typing import Final, TypedDict, cast
+from typing import Final, cast
 
 from aws_cdk.region_info import RegionInfo
 
@@ -60,6 +60,7 @@ from projen_types import (
     JobStepName,
     JsonValue,
     PreCommitHookSpec,
+    ProjectSpec,
     ProjenTaskSpec,
     TaskName,
     WorkflowName,
@@ -101,18 +102,6 @@ DEV_DEPS: Final = [
     "ruff@0.17.2",
     "ty@0.0.92",
 ]
-
-
-class ProjectSpec(TypedDict):
-    """Identity metadata of the ``AwsCdkPythonApp`` project."""
-
-    name: str
-    module_name: str
-    author_name: str
-    author_email: str
-    version: str
-    cdk_version: str
-    pytest_version: str
 
 
 PROJECT_SPEC: Final[ProjectSpec] = {
@@ -544,320 +533,320 @@ DEPLOYMENT_ENVIRONMENTS: Final[list[DeploymentEnvironment]] = [
 
 CI_RUNNERS: Final = ["ubuntu-latest"]
 
-GITHUB_JOB_STEPS: Final[dict[JobStepName, GitHubJobStepSpec]] = {
-    JobStepName.AWS_CREDENTIALS: {
-        "uses": AWS_CREDENTIALS_V6_PIN,
-        "with_": {
-            "role-to-assume": "arn:aws:iam::${{ matrix.aws_account_id }}:role/github-actions-deploy",
-            "aws-region": "${{ matrix.region_name }}",
-        },
+# Steps referenced by more than one job, hoisted for single-sourcing;
+# single-use steps are declared inline in the prelude or in their job's
+# ``steps`` mapping.
+AWS_CREDENTIALS_STEP: Final[GitHubJobStepSpec] = {
+    "uses": AWS_CREDENTIALS_V6_PIN,
+    "with_": {
+        "role-to-assume": "arn:aws:iam::${{ matrix.aws_account_id }}:role/github-actions-deploy",
+        "aws-region": "${{ matrix.region_name }}",
     },
-    JobStepName.CDK_DEPLOY: {
-        "run": f'{PROJEN_RUN} deploy "*-${{{{ matrix.environment_name }}}}"',
-    },
-    JobStepName.CDK_DIFF: {"run": f"{PROJEN_RUN} {TaskName.CDK_DIFF}"},
-    JobStepName.CDK_DIFF_CAPTURE: {
-        "run": f"{PROJEN_RUN} {TaskName.CDK_DIFF} > cdk-diff.txt || true",
-    },
-    JobStepName.CDK_SYNTH: {"run": f"{PROJEN_RUN} {TaskName.CDK_SYNTH}"},
+}
+INSTALL_NODE_STEP: Final[GitHubJobStepSpec] = {
+    "uses": SETUP_NODE_V7_PIN,
+    "with_": {"node-version": NODE_VERSION},
+}
+
+# Setup shared by several jobs
+_SETUP: Final[dict[JobStepName, GitHubJobStepSpec]] = {
     JobStepName.CHECKOUT: {
         "uses": CHECKOUT_V7_PIN,
         "with_": {"persist-credentials": False},
-    },
-    JobStepName.CHECKOUT_FULL_HISTORY: {
-        "uses": CHECKOUT_V7_PIN,
-        "with_": {"persist-credentials": False, "fetch-depth": 0},
-    },
-    JobStepName.COMMIT_LINT: {
-        "run": (
-            "npm install --no-save --no-package-lock "
-            f"{COMMITLINT_NPM_PACKAGES[0]} {COMMITLINT_NPM_PACKAGES[1]}\n"
-            "npx --no-install commitlint --version\n"
-            "npx --no-install commitlint --from="
-            "${{ github.event.pull_request.base.sha }} "
-            "--to=${{ github.event.pull_request.head.sha }} --verbose"
-        ),
-    },
-    JobStepName.DOCKERFILE_SCAN: {
-        "background": True,
-        "run": (
-            "curl -fsSL -o /tmp/hadolint "
-            "https://github.com/hadolint/hadolint/releases/download/"
-            f"v{HADOLINT_VERSION}/hadolint-linux-x86_64\n"
-            f"printf '%s  %s\\n' {HADOLINT_LINUX_X86_64_SHA256}"
-            " /tmp/hadolint | sha256sum --check --strict -\n"
-            "sudo install -m 0755 /tmp/hadolint "
-            "/usr/local/bin/hadolint\n"
-            "hadolint --version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
-        ),
-    },
-    JobStepName.YAML_LINT: {
-        "background": True,
-        "run": (
-            f"uvx --isolated yamllint@{YAMLLINT_VERSION} --version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_YAML_LINT}"
-        ),
-    },
-    JobStepName.PYTHON_FORMAT_CHECK: {
-        "run": f"{PROJEN_RUN} {TaskName.PYTHON_FORMAT_CHECK}",
-    },
-    JobStepName.GITHUB_ACTIONS_SCAN: {
-        "background": True,
-        "run": (
-            "curl -fsSL -o /tmp/zizmor.tar.gz "
-            "https://github.com/zizmorcore/zizmor/releases/download/"
-            f"v{ZIZMOR_VERSION}/"
-            "zizmor-x86_64-unknown-linux-gnu.tar.gz\n"
-            f"printf '%s  %s\\n' {ZIZMOR_LINUX_X64_TARBALL_SHA256}"
-            " /tmp/zizmor.tar.gz | sha256sum --check --strict -\n"
-            "tar -xzf /tmp/zizmor.tar.gz -C /tmp\n"
-            "sudo install -m 0755 /tmp/zizmor /usr/local/bin/zizmor\n"
-            "zizmor --version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_SCAN}"
-        ),
-    },
-    JobStepName.GITHUB_ACTIONS_LINT: {
-        "background": True,
-        "run": (
-            "curl -fsSL -o /tmp/actionlint.tar.gz "
-            "https://github.com/rhysd/actionlint/releases/download/"
-            f"v{ACTIONLINT_VERSION}/"
-            f"actionlint_{ACTIONLINT_VERSION}_linux_amd64.tar.gz\n"
-            f"printf '%s  %s\\n' {ACTIONLINT_LINUX_AMD64_TARBALL_SHA256}"
-            " /tmp/actionlint.tar.gz | sha256sum --check --strict -\n"
-            "tar -xzf /tmp/actionlint.tar.gz -C /tmp\n"
-            "sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint\n"
-            "actionlint --version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_LINT}"
-        ),
-    },
-    JobStepName.IAC_SCAN: {
-        "background": True,
-        "run": (
-            f"{PROJEN_RUN} {TaskName.CDK_SYNTH_SILENT}\n"
-            f"uvx --isolated checkov@{CHECKOV_VERSION} --version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_IAC_SCAN}"
-        ),
-    },
-    JobStepName.INSTALL_CDK_CLI: {"run": "npm install -g aws-cdk@2.1146.1"},
-    JobStepName.INSTALL_PYTHON_DEPENDENCIES: {"run": "uv sync --frozen"},
-    JobStepName.INSTALL_PROJEN_CLI: {"run": "npm install -g projen@0.104.17"},
-    JobStepName.PYTHON_LINT: {"run": f"{PROJEN_RUN} {TaskName.PYTHON_LINT}"},
-    JobStepName.MISCONFIG_SCAN: {
-        "background": True,
-        "run": (
-            "curl -fsSL -o /tmp/trivy.tar.gz "
-            "https://github.com/aquasecurity/trivy/releases/download/"
-            f"v{TRIVY_VERSION}/"
-            f"trivy_{TRIVY_VERSION}_Linux-64bit.tar.gz\n"
-            f"printf '%s  %s\\n' {TRIVY_LINUX_64BIT_TARBALL_SHA256}"
-            " /tmp/trivy.tar.gz | sha256sum --check --strict -\n"
-            "tar -xzf /tmp/trivy.tar.gz -C /tmp trivy\n"
-            "sudo install -m 0755 /tmp/trivy /usr/local/bin/trivy\n"
-            "trivy --version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_MISCONFIG_SCAN}"
-        ),
-    },
-    JobStepName.PYTHON_PACKAGE: {"run": f"{PROJEN_RUN} {TaskName.PACKAGE}"},
-    JobStepName.POST_CDK_DIFF: {
-        "env": {
-            "GH_TOKEN": "${{ github.token }}",
-            "PR_NUMBER": "${{ github.event.pull_request.number }}",
-        },
-        "run": POST_CDK_DIFF,
-    },
-    JobStepName.REGENERATE_PROJEN_FILES: {
-        "run": f"{PROJEN_RUN} --no-post --debug",
-    },
-    JobStepName.REGEN_DRIFT_CHECK: {"run": "git diff --exit-code"},
-    JobStepName.SAST_SCAN: {
-        "background": True,
-        "run": (
-            "curl -fsSL -o /tmp/opengrep "
-            "https://github.com/opengrep/opengrep/releases/download/"
-            f"v{OPENGREP_VERSION}/opengrep_manylinux_x86\n"
-            f"printf '%s  %s\\n' {OPENGREP_MANYLINUX_X86_SHA256}"
-            " /tmp/opengrep | sha256sum --check --strict -\n"
-            "sudo install -m 0755 /tmp/opengrep /usr/local/bin/opengrep\n"
-            "opengrep --version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_SAST}"
-        ),
-    },
-    JobStepName.SCA_MULTI_LANGUAGE: {
-        "background": True,
-        "run": (
-            "curl -fsSL -o /tmp/osv-scanner "
-            "https://github.com/google/osv-scanner/releases/download/"
-            f"v{OSV_SCANNER_VERSION}/osv-scanner_linux_amd64\n"
-            f"printf '%s  %s\\n' {OSV_SCANNER_LINUX_AMD64_SHA256}"
-            " /tmp/osv-scanner | sha256sum --check --strict -\n"
-            "sudo install -m 0755 /tmp/osv-scanner "
-            "/usr/local/bin/osv-scanner\n"
-            "osv-scanner --version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_SCA_MULTI_LANGUAGE}"
-        ),
-    },
-    JobStepName.SCA_PYTHON: {
-        "background": True,
-        "run": f"{PROJEN_RUN} {TaskName.SECURITY_SCA_PYTHON}",
-    },
-    JobStepName.SECRET_SCAN: {
-        "background": True,
-        "run": (
-            'if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then\n'
-            "  git fetch --unshallow\n"
-            "fi\n"
-            "curl -fsSL -o /tmp/gitleaks.tar.gz "
-            "https://github.com/gitleaks/gitleaks/releases/download/"
-            f"v{GITLEAKS_VERSION}/"
-            f"gitleaks_{GITLEAKS_VERSION}_linux_x64.tar.gz\n"
-            f"printf '%s  %s\\n' {GITLEAKS_LINUX_X64_TARBALL_SHA256}"
-            " /tmp/gitleaks.tar.gz | sha256sum --check --strict -\n"
-            "tar -xzf /tmp/gitleaks.tar.gz -C /tmp\n"
-            "sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks\n"
-            "gitleaks version\n"
-            f"{PROJEN_RUN} {TaskName.SECURITY_SECRET_SCAN}"
-        ),
-    },
-    JobStepName.INSTALL_NODE: {
-        "uses": SETUP_NODE_V7_PIN,
-        "with_": {"node-version": NODE_VERSION},
     },
     JobStepName.INSTALL_UV: {
         "uses": SETUP_UV_V10_PIN,
         "with_": {"python-version": PYTHON_VERSION},
     },
-    JobStepName.PYTHON_STATIC_ANALYSIS: {
-        "run": f"{PROJEN_RUN} {TaskName.PYTHON_STATIC_ANALYSIS}",
-    },
-    JobStepName.PYTHON_DEPENDENCY_LINT: {
-        "run": f"{PROJEN_RUN} {TaskName.PYTHON_DEPENDENCY_LINT}",
-    },
-    JobStepName.PYTHON_TYPECHECK: {
-        "run": f"{PROJEN_RUN} {TaskName.PYTHON_TYPECHECK}",
-    },
-    JobStepName.PYTHON_UNIT_TESTS: {"run": f"{PROJEN_RUN} {TaskName.TEST}"},
-    JobStepName.WAIT_FOR_SCANS: {"wait_all": True},
+    JobStepName.INSTALL_NODE: INSTALL_NODE_STEP,
+    JobStepName.INSTALL_PYTHON_DEPENDENCIES: {"run": "uv sync --frozen"},
+    JobStepName.INSTALL_PROJEN_CLI: {"run": "npm install -g projen@0.104.17"},
+}
+_SETUP_CDK: Final[dict[JobStepName, GitHubJobStepSpec]] = {
+    **_SETUP,
+    JobStepName.INSTALL_CDK_CLI: {"run": "npm install -g aws-cdk@2.1146.1"},
 }
 
-GITHUB_JOBS: Final[dict[JobName, GitHubJobSpec]] = {
-    JobName.CHECK: {
-        "runs_on": CI_RUNNERS,
-        "permissions": {"contents": GitHubPermission.READ},
-        "steps": [
-            JobStepName.CHECKOUT,
-            JobStepName.INSTALL_UV,
-            JobStepName.INSTALL_NODE,
-            JobStepName.INSTALL_PYTHON_DEPENDENCIES,
-            JobStepName.INSTALL_PROJEN_CLI,
-            JobStepName.REGENERATE_PROJEN_FILES,
-            JobStepName.REGEN_DRIFT_CHECK,
-            JobStepName.PYTHON_LINT,
-            JobStepName.PYTHON_FORMAT_CHECK,
-            JobStepName.PYTHON_TYPECHECK,
-            JobStepName.PYTHON_STATIC_ANALYSIS,
-            JobStepName.PYTHON_DEPENDENCY_LINT,
-            JobStepName.PYTHON_UNIT_TESTS,
-            JobStepName.PYTHON_PACKAGE,
-        ],
-    },
-    JobName.BUILD: {
-        "runs_on": CI_RUNNERS,
-        "needs": [JobName.CHECK],
-        "matrix": DEPLOYMENT_ENVIRONMENTS,
-        "max_parallel": 1,
-        "fail_fast": True,
-        "permissions": {
-            "contents": GitHubPermission.READ,
-            "id_token": GitHubPermission.WRITE,
-            "pull_requests": GitHubPermission.WRITE,
+# The check job gates both the build and deploy workflows, so it is
+# declared once here instead of per workflow.
+CHECK_JOB: Final[GitHubJobSpec] = {
+    "runs_on": CI_RUNNERS,
+    "permissions": {"contents": GitHubPermission.READ},
+    "steps": {
+        **_SETUP,
+        JobStepName.REGENERATE_PROJEN_FILES: {
+            "run": f"{PROJEN_RUN} --no-post --debug",
         },
-        "steps": [
-            JobStepName.CHECKOUT,
-            JobStepName.INSTALL_UV,
-            JobStepName.INSTALL_NODE,
-            JobStepName.INSTALL_CDK_CLI,
-            JobStepName.INSTALL_PYTHON_DEPENDENCIES,
-            JobStepName.INSTALL_PROJEN_CLI,
-            JobStepName.AWS_CREDENTIALS,
-            JobStepName.CDK_SYNTH,
-            JobStepName.CDK_DIFF_CAPTURE,
-            JobStepName.POST_CDK_DIFF,
-        ],
-    },
-    JobName.COMMIT_LINT: {
-        "runs_on": CI_RUNNERS,
-        "permissions": {"contents": GitHubPermission.READ},
-        "steps": [
-            JobStepName.CHECKOUT_FULL_HISTORY,
-            JobStepName.INSTALL_NODE,
-            JobStepName.COMMIT_LINT,
-        ],
-    },
-    JobName.DEPLOY: {
-        "runs_on": CI_RUNNERS,
-        "needs": [JobName.CHECK],
-        "matrix": DEPLOYMENT_ENVIRONMENTS,
-        "max_parallel": 1,
-        "fail_fast": True,
-        "permissions": {
-            "contents": GitHubPermission.READ,
-            "id_token": GitHubPermission.WRITE,
+        JobStepName.REGEN_DRIFT_CHECK: {"run": "git diff --exit-code"},
+        JobStepName.PYTHON_LINT: {
+            "run": f"{PROJEN_RUN} {TaskName.PYTHON_LINT}",
         },
-        "steps": [
-            JobStepName.CHECKOUT,
-            JobStepName.INSTALL_UV,
-            JobStepName.INSTALL_NODE,
-            JobStepName.INSTALL_CDK_CLI,
-            JobStepName.INSTALL_PYTHON_DEPENDENCIES,
-            JobStepName.INSTALL_PROJEN_CLI,
-            JobStepName.AWS_CREDENTIALS,
-            JobStepName.CDK_DIFF,
-            JobStepName.CDK_DEPLOY,
-        ],
-    },
-    JobName.SCAN: {
-        "runs_on": CI_RUNNERS,
-        "permissions": {"contents": GitHubPermission.READ},
-        "steps": [
-            JobStepName.CHECKOUT,
-            JobStepName.INSTALL_UV,
-            JobStepName.INSTALL_NODE,
-            JobStepName.INSTALL_CDK_CLI,
-            JobStepName.INSTALL_PYTHON_DEPENDENCIES,
-            JobStepName.INSTALL_PROJEN_CLI,
-            JobStepName.SECRET_SCAN,
-            JobStepName.SAST_SCAN,
-            JobStepName.MISCONFIG_SCAN,
-            JobStepName.SCA_PYTHON,
-            JobStepName.IAC_SCAN,
-            JobStepName.GITHUB_ACTIONS_SCAN,
-            JobStepName.GITHUB_ACTIONS_LINT,
-            JobStepName.SCA_MULTI_LANGUAGE,
-            JobStepName.DOCKERFILE_SCAN,
-            JobStepName.YAML_LINT,
-            JobStepName.WAIT_FOR_SCANS,
-        ],
+        JobStepName.PYTHON_FORMAT_CHECK: {
+            "run": f"{PROJEN_RUN} {TaskName.PYTHON_FORMAT_CHECK}",
+        },
+        JobStepName.PYTHON_TYPECHECK: {
+            "run": f"{PROJEN_RUN} {TaskName.PYTHON_TYPECHECK}",
+        },
+        JobStepName.PYTHON_STATIC_ANALYSIS: {
+            "run": f"{PROJEN_RUN} {TaskName.PYTHON_STATIC_ANALYSIS}",
+        },
+        JobStepName.PYTHON_DEPENDENCY_LINT: {
+            "run": f"{PROJEN_RUN} {TaskName.PYTHON_DEPENDENCY_LINT}",
+        },
+        JobStepName.PYTHON_UNIT_TESTS: {"run": f"{PROJEN_RUN} {TaskName.TEST}"},
+        JobStepName.PYTHON_PACKAGE: {
+            "run": f"{PROJEN_RUN} {TaskName.PACKAGE}",
+        },
     },
 }
 
 GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
     WorkflowName.BUILD: {
         "on": {"pull_request": {}},
-        "jobs": [JobName.CHECK, JobName.BUILD],
+        "jobs": {
+            JobName.CHECK: CHECK_JOB,
+            JobName.BUILD: {
+                "runs_on": CI_RUNNERS,
+                "needs": [JobName.CHECK],
+                "matrix": DEPLOYMENT_ENVIRONMENTS,
+                "max_parallel": 1,
+                "fail_fast": True,
+                "permissions": {
+                    "contents": GitHubPermission.READ,
+                    "id_token": GitHubPermission.WRITE,
+                    "pull_requests": GitHubPermission.WRITE,
+                },
+                "steps": {
+                    **_SETUP_CDK,
+                    JobStepName.AWS_CREDENTIALS: AWS_CREDENTIALS_STEP,
+                    JobStepName.CDK_SYNTH: {
+                        "run": f"{PROJEN_RUN} {TaskName.CDK_SYNTH}",
+                    },
+                    JobStepName.CDK_DIFF_CAPTURE: {
+                        "run": f"{PROJEN_RUN} {TaskName.CDK_DIFF} > cdk-diff.txt || true",
+                    },
+                    JobStepName.POST_CDK_DIFF: {
+                        "env": {
+                            "GH_TOKEN": "${{ github.token }}",
+                            "PR_NUMBER": "${{ github.event.pull_request.number }}",
+                        },
+                        "run": POST_CDK_DIFF,
+                    },
+                },
+            },
+        },
     },
     WorkflowName.COMMIT_LINT: {
         "on": {"pull_request": {}},
-        "jobs": [JobName.COMMIT_LINT],
+        "jobs": {
+            JobName.COMMIT_LINT: {
+                "runs_on": CI_RUNNERS,
+                "permissions": {"contents": GitHubPermission.READ},
+                "steps": {
+                    JobStepName.CHECKOUT_FULL_HISTORY: {
+                        "uses": CHECKOUT_V7_PIN,
+                        "with_": {
+                            "persist-credentials": False,
+                            "fetch-depth": 0,
+                        },
+                    },
+                    JobStepName.INSTALL_NODE: INSTALL_NODE_STEP,
+                    JobStepName.COMMIT_LINT: {
+                        "run": (
+                            "npm install --no-save --no-package-lock "
+                            f"{COMMITLINT_NPM_PACKAGES[0]} "
+                            f"{COMMITLINT_NPM_PACKAGES[1]}\n"
+                            "npx --no-install commitlint --version\n"
+                            "npx --no-install commitlint --from="
+                            "${{ github.event.pull_request.base.sha }} "
+                            "--to=${{ github.event.pull_request.head.sha }}"
+                            " --verbose"
+                        ),
+                    },
+                },
+            },
+        },
     },
     WorkflowName.DEPLOY: {
         "on": {"push": {"branches": ["main"]}, "workflow_dispatch": {}},
-        "jobs": [JobName.CHECK, JobName.DEPLOY],
         "limit_concurrency": True,
+        "jobs": {
+            JobName.CHECK: CHECK_JOB,
+            JobName.DEPLOY: {
+                "runs_on": CI_RUNNERS,
+                "needs": [JobName.CHECK],
+                "matrix": DEPLOYMENT_ENVIRONMENTS,
+                "max_parallel": 1,
+                "fail_fast": True,
+                "permissions": {
+                    "contents": GitHubPermission.READ,
+                    "id_token": GitHubPermission.WRITE,
+                },
+                "steps": {
+                    **_SETUP_CDK,
+                    JobStepName.AWS_CREDENTIALS: AWS_CREDENTIALS_STEP,
+                    JobStepName.CDK_DIFF: {
+                        "run": f"{PROJEN_RUN} {TaskName.CDK_DIFF}",
+                    },
+                    JobStepName.CDK_DEPLOY: {
+                        "run": (
+                            f"{PROJEN_RUN} deploy "
+                            f'"*-${{{{ matrix.environment_name }}}}"'
+                        ),
+                    },
+                },
+            },
+        },
     },
     WorkflowName.SECURITY: {
         "on": {"pull_request": {}, "workflow_dispatch": {}},
-        "jobs": [JobName.SCAN],
+        "jobs": {
+            JobName.SCAN: {
+                "runs_on": CI_RUNNERS,
+                "permissions": {"contents": GitHubPermission.READ},
+                "steps": {
+                    **_SETUP_CDK,
+                    JobStepName.SECRET_SCAN: {
+                        "background": True,
+                        "run": (
+                            'if [ "$(git rev-parse --is-shallow-repository)"'
+                            ' = "true" ]; then\n'
+                            "  git fetch --unshallow\n"
+                            "fi\n"
+                            "curl -fsSL -o /tmp/gitleaks.tar.gz "
+                            "https://github.com/gitleaks/gitleaks/releases/"
+                            "download/"
+                            f"v{GITLEAKS_VERSION}/"
+                            f"gitleaks_{GITLEAKS_VERSION}_linux_x64.tar.gz\n"
+                            f"printf '%s  %s\\n' {GITLEAKS_LINUX_X64_TARBALL_SHA256}"
+                            " /tmp/gitleaks.tar.gz | sha256sum --check --strict -\n"
+                            "tar -xzf /tmp/gitleaks.tar.gz -C /tmp\n"
+                            "sudo install -m 0755 /tmp/gitleaks /usr/local/bin"
+                            "/gitleaks\n"
+                            "gitleaks version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_SECRET_SCAN}"
+                        ),
+                    },
+                    JobStepName.SAST_SCAN: {
+                        "background": True,
+                        "run": (
+                            "curl -fsSL -o /tmp/opengrep "
+                            "https://github.com/opengrep/opengrep/releases/"
+                            "download/"
+                            f"v{OPENGREP_VERSION}/opengrep_manylinux_x86\n"
+                            f"printf '%s  %s\\n' {OPENGREP_MANYLINUX_X86_SHA256}"
+                            " /tmp/opengrep | sha256sum --check --strict -\n"
+                            "sudo install -m 0755 /tmp/opengrep "
+                            "/usr/local/bin/opengrep\n"
+                            "opengrep --version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_SAST}"
+                        ),
+                    },
+                    JobStepName.MISCONFIG_SCAN: {
+                        "background": True,
+                        "run": (
+                            "curl -fsSL -o /tmp/trivy.tar.gz "
+                            "https://github.com/aquasecurity/trivy/releases/"
+                            "download/"
+                            f"v{TRIVY_VERSION}/"
+                            f"trivy_{TRIVY_VERSION}_Linux-64bit.tar.gz\n"
+                            f"printf '%s  %s\\n' {TRIVY_LINUX_64BIT_TARBALL_SHA256}"
+                            " /tmp/trivy.tar.gz | sha256sum --check --strict -\n"
+                            "tar -xzf /tmp/trivy.tar.gz -C /tmp trivy\n"
+                            "sudo install -m 0755 /tmp/trivy /usr/local/bin"
+                            "/trivy\n"
+                            "trivy --version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_MISCONFIG_SCAN}"
+                        ),
+                    },
+                    JobStepName.SCA_PYTHON: {
+                        "background": True,
+                        "run": f"{PROJEN_RUN} {TaskName.SECURITY_SCA_PYTHON}",
+                    },
+                    JobStepName.IAC_SCAN: {
+                        "background": True,
+                        "run": (
+                            f"{PROJEN_RUN} {TaskName.CDK_SYNTH_SILENT}\n"
+                            f"uvx --isolated checkov@{CHECKOV_VERSION} --version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_IAC_SCAN}"
+                        ),
+                    },
+                    JobStepName.GITHUB_ACTIONS_SCAN: {
+                        "background": True,
+                        "run": (
+                            "curl -fsSL -o /tmp/zizmor.tar.gz "
+                            "https://github.com/zizmorcore/zizmor/releases/"
+                            "download/"
+                            f"v{ZIZMOR_VERSION}/"
+                            "zizmor-x86_64-unknown-linux-gnu.tar.gz\n"
+                            f"printf '%s  %s\\n' {ZIZMOR_LINUX_X64_TARBALL_SHA256}"
+                            " /tmp/zizmor.tar.gz | sha256sum --check --strict -\n"
+                            "tar -xzf /tmp/zizmor.tar.gz -C /tmp\n"
+                            "sudo install -m 0755 /tmp/zizmor /usr/local/bin"
+                            "/zizmor\n"
+                            "zizmor --version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_SCAN}"
+                        ),
+                    },
+                    JobStepName.GITHUB_ACTIONS_LINT: {
+                        "background": True,
+                        "run": (
+                            "curl -fsSL -o /tmp/actionlint.tar.gz "
+                            "https://github.com/rhysd/actionlint/releases/"
+                            "download/"
+                            f"v{ACTIONLINT_VERSION}/"
+                            f"actionlint_{ACTIONLINT_VERSION}_linux_amd64.tar.gz\n"
+                            f"printf '%s  %s\\n' "
+                            f"{ACTIONLINT_LINUX_AMD64_TARBALL_SHA256}"
+                            " /tmp/actionlint.tar.gz | sha256sum --check"
+                            " --strict -\n"
+                            "tar -xzf /tmp/actionlint.tar.gz -C /tmp\n"
+                            "sudo install -m 0755 /tmp/actionlint "
+                            "/usr/local/bin/actionlint\n"
+                            "actionlint --version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_LINT}"
+                        ),
+                    },
+                    JobStepName.SCA_MULTI_LANGUAGE: {
+                        "background": True,
+                        "run": (
+                            "curl -fsSL -o /tmp/osv-scanner "
+                            "https://github.com/google/osv-scanner/releases/"
+                            "download/"
+                            f"v{OSV_SCANNER_VERSION}/osv-scanner_linux_amd64\n"
+                            f"printf '%s  %s\\n' {OSV_SCANNER_LINUX_AMD64_SHA256}"
+                            " /tmp/osv-scanner | sha256sum --check --strict -\n"
+                            "sudo install -m 0755 /tmp/osv-scanner "
+                            "/usr/local/bin/osv-scanner\n"
+                            "osv-scanner --version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_SCA_MULTI_LANGUAGE}"
+                        ),
+                    },
+                    JobStepName.DOCKERFILE_SCAN: {
+                        "background": True,
+                        "run": (
+                            "curl -fsSL -o /tmp/hadolint "
+                            "https://github.com/hadolint/hadolint/releases/"
+                            "download/"
+                            f"v{HADOLINT_VERSION}/hadolint-linux-x86_64\n"
+                            f"printf '%s  %s\\n' {HADOLINT_LINUX_X86_64_SHA256}"
+                            " /tmp/hadolint | sha256sum --check --strict -\n"
+                            "sudo install -m 0755 /tmp/hadolint "
+                            "/usr/local/bin/hadolint\n"
+                            "hadolint --version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
+                        ),
+                    },
+                    JobStepName.YAML_LINT: {
+                        "background": True,
+                        "run": (
+                            f"uvx --isolated yamllint@{YAMLLINT_VERSION} --version\n"
+                            f"{PROJEN_RUN} {TaskName.SECURITY_YAML_LINT}"
+                        ),
+                    },
+                    JobStepName.WAIT_FOR_SCANS: {"wait_all": True},
+                },
+            },
+        },
     },
 }

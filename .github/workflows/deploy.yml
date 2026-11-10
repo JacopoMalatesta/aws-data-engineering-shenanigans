@@ -85,15 +85,15 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: "24"
-      - name: Install CDK CLI
-        id: install_cdk_cli
-        run: npm install -g aws-cdk@2.1146.1
       - name: Install Python dependencies
         id: install_python_dependencies
         run: uv sync --frozen
       - name: Install projen CLI
         id: install_projen_cli
         run: npm install -g projen@0.104.17
+      - name: Install CDK CLI
+        id: install_cdk_cli
+        run: npm install -g aws-cdk@2.1146.1
       - name: AWS credentials via OIDC
         id: aws_credentials_via_oidc
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd

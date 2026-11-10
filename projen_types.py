@@ -31,6 +31,21 @@ class FileSpec(TypedDict):
     marker: NotRequired[bool]
 
 
+class ProjectSpec(TypedDict):
+    """Identity metadata of the ``AwsCdkPythonApp`` project.
+
+    ``PROJECT_SPEC`` in ``projen_config.py`` holds the values.
+    """
+
+    name: str
+    module_name: str
+    author_name: str
+    author_email: str
+    version: str
+    cdk_version: str
+    pytest_version: str
+
+
 class TaskName(StrEnum):
     """Name of a projen task used by this repo's tooling.
 
@@ -126,10 +141,11 @@ class EnvironmentName(StrEnum):
 
 
 class JobName(StrEnum):
-    """Identifier of a job within the managed workflows.
+    """Identifier of a job within the workflow that renders it.
 
-    Values render as the YAML job keys; provide distinct values for
-    distinct jobs. A job may be referenced by more than one workflow.
+    Values are the YAML job keys, unique within one workflow's
+    ``jobs`` mapping; a job hosted by two workflows is declared once
+    and shared as a hoisted constant.
     """
 
     BUILD = "build"
@@ -140,11 +156,12 @@ class JobName(StrEnum):
 
 
 class JobStepName(StrEnum):
-    """Addressable step entry in ``GITHUB_JOB_STEPS``.
+    """Rendered YAML ``name`` label of a job step.
 
-    Values are the rendered YAML ``name`` labels and must stay unique
-    (shared values collapse steps). Members are scope labels under the
-    same conventions as ``TaskName``. ``CHECKOUT`` and
+    Values key the ``steps`` mapping of the job that declares them and
+    must stay unique within a job (shared values collapse steps).
+    Members are scope labels under the same conventions as
+    ``TaskName``. ``CHECKOUT`` and
     ``CHECKOUT_FULL_HISTORY`` pin the official checkout action at
     default vs full fetch depth, ``INSTALL_NODE``/``INSTALL_UV`` use
     official ``setup-*`` actions; other ``INSTALL_*`` steps are shell
@@ -207,13 +224,33 @@ class DeploymentEnvironment(TypedDict):
     region_name: str
 
 
+class GitHubJobStepSpec(TypedDict):
+    """Specification for a rendered GitHub Actions job step.
+
+    Keys of each job's ``steps`` mapping (``JobStepName`` members) are
+    the YAML ``name`` labels; setup passes them explicitly as
+    ``JobStep``'s ``name`` argument. All other fields mirror ``JobStep``
+    keyword arguments and are splatted as-is.
+    """
+
+    run: NotRequired[str]
+    uses: NotRequired[str]
+    with_: NotRequired[dict[str, JsonValue]]
+    env: NotRequired[dict[str, str]]
+    background: NotRequired[bool]
+    wait_all: NotRequired[bool]
+
+
 class GitHubJobSpec(TypedDict):
     """Specification for a single job within a workflow.
 
-    ``GITHUB_JOBS`` keys are the job ids and double as the YAML job
-    names. ``steps`` renders into the YAML job in list order. ``needs``
-    and ``matrix`` render as the job's ``needs`` and
-    ``strategy.matrix.include``. ``max_parallel`` and ``fail_fast``
+    Declared in the ``jobs`` mapping of the workflow that renders it,
+    or hoisted into a shared constant when more than one workflow hosts
+    it. ``steps`` renders into the YAML job in mapping order (prelude
+    unpacks render first), each key doubling as the step's
+    ``name``. ``needs`` targets sibling jobs
+    declared in the same ``jobs`` mapping; ``matrix`` renders as the
+    job's ``strategy.matrix.include``. ``max_parallel`` and ``fail_fast``
     render into the same strategy block: ``max_parallel: 1`` runs the
     matrix legs one at a time, in include order, and ``fail_fast``
     cancels the remaining queued or in-progress legs on a failure.
@@ -221,7 +258,7 @@ class GitHubJobSpec(TypedDict):
 
     runs_on: list[str]
     permissions: dict[str, GitHubPermission]
-    steps: list[JobStepName]
+    steps: dict[JobStepName, GitHubJobStepSpec]
     needs: NotRequired[list[JobName]]
     matrix: NotRequired[list[DeploymentEnvironment]]
     max_parallel: NotRequired[int]
@@ -249,29 +286,13 @@ class GitHubWorkflowSpec(TypedDict):
     closed, event-keyed trigger mapping (``WorkflowTriggers``).
     Both type checkers verify every key against ``GithubWorkflow.on``'s
     keyword parameters, and projen still rejects unknown events at synth
-    time, so no extra validation is needed. ``jobs`` lists ``GITHUB_JOBS``
-    keys. ``limit_concurrency`` enables the workflow's concurrency group,
-    which projen defaults to the workflow name with ``cancel-in-progress:
-    false`` — a second run queues behind the in-flight one.
+    time, so no extra validation is needed. ``jobs`` maps job ids to
+    inline ``GitHubJobSpec``s. ``limit_concurrency`` enables the
+    workflow's concurrency group, which projen defaults to the workflow
+    name with ``cancel-in-progress: false`` — a second run queues
+    behind the in-flight one.
     """
 
     on: WorkflowTriggers
-    jobs: list[JobName]
+    jobs: dict[JobName, GitHubJobSpec]
     limit_concurrency: NotRequired[bool]
-
-
-class GitHubJobStepSpec(TypedDict):
-    """Specification for a registered GitHub Actions job step.
-
-    ``GITHUB_JOB_STEPS`` keys are the YAML ``name`` labels (via the
-    ``JobStepName`` value) and double as lookup keys; setup passes the
-    key explicitly as ``JobStep``'s ``name`` argument. All other fields
-    mirror ``JobStep`` keyword arguments and are splatted as-is.
-    """
-
-    run: NotRequired[str]
-    uses: NotRequired[str]
-    with_: NotRequired[dict[str, JsonValue]]
-    env: NotRequired[dict[str, str]]
-    background: NotRequired[bool]
-    wait_all: NotRequired[bool]
