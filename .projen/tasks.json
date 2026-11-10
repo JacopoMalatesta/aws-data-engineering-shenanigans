@@ -446,6 +446,15 @@
         }
       ]
     },
+    "toml-lint": {
+      "name": "toml-lint",
+      "description": "Lint TOML files with taplo",
+      "steps": [
+        {
+          "exec": "taplo lint"
+        }
+      ]
+    },
     "typecheck": {
       "name": "typecheck",
       "description": "Type check with ty",

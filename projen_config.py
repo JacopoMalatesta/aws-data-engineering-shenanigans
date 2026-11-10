@@ -40,6 +40,8 @@ from constants import (
     PYTHON_VERSION,
     SETUP_NODE_V7_PIN,
     SETUP_UV_V10_PIN,
+    TAPLO_LINUX_X64_GZIP_SHA256,
+    TAPLO_VERSION,
     TRIVY_LINUX_64BIT_TARBALL_SHA256,
     TRIVY_VERSION,
     VIRTUAL_ENV_BINARY_DIR,
@@ -85,6 +87,7 @@ VSCODE_EXTENSIONS: Final = [
     "astral-sh.ty",
     "charliermarsh.ruff",
     "detachhead.basedpyright",
+    "tamasfe.even-better-toml",
 ]
 
 VSCODE_SETTINGS: Final[dict[str, JsonValue]] = {
@@ -299,6 +302,10 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
         "description": "Lint YAML files with yamllint",
         "exec": f"uvx --isolated yamllint@{YAMLLINT_VERSION} .",
     },
+    TaskName.TOML_LINT: {
+        "description": "Lint TOML files with taplo",
+        "exec": "taplo lint",
+    },
     TaskName.SECURITY: {
         "description": (
             "Run all security scanners: dependency audit, secret history, "
@@ -485,6 +492,26 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
             },
         },
     },
+    # taplo lint file selection: tracked TOML only — skip the uv lockfile
+    # and vendored/generated trees, mirroring .yamllint.yaml's ignore list.
+    "taplo.toml": {
+        "file_type": FileType.TOML,
+        "obj": {
+            "include": ["**/*.toml"],
+            "exclude": [
+                "uv.lock",
+                ".venv/**",
+                "node_modules/**",
+                "cdk.out/**",
+                ".git/**",
+                ".pytest_cache/**",
+                ".ruff_cache/**",
+                ".projen/**",
+                "dist/**",
+                ".opencode/**",
+            ],
+        },
+    },
     "osv-scanner.toml": {
         "file_type": FileType.TOML,
         "obj": {},
@@ -598,6 +625,23 @@ CHECK_JOB: Final[GitHubJobSpec] = {
                 "/usr/local/bin/actionlint\n"
                 "actionlint --version\n"
                 f"{PROJEN_RUN} {TaskName.GITHUB_ACTIONS_LINT}"
+            ),
+        },
+        JobStepName.TOML_LINT: {
+            "run": (
+                "curl -fsSL -o /tmp/taplo.gz "
+                "https://github.com/tamasfe/taplo/releases/"
+                "download/"
+                f"{TAPLO_VERSION}/"
+                "taplo-linux-x86_64.gz\n"
+                f"printf '%s  %s\\n' {TAPLO_LINUX_X64_GZIP_SHA256}"
+                " /tmp/taplo.gz | sha256sum --check"
+                " --strict -\n"
+                "gunzip /tmp/taplo.gz\n"
+                "sudo install -m 0755 /tmp/taplo "
+                "/usr/local/bin/taplo\n"
+                "taplo --version\n"
+                f"{PROJEN_RUN} {TaskName.TOML_LINT}"
             ),
         },
         JobStepName.PYTHON_LINT: {

@@ -83,12 +83,14 @@ standalone binaries digest-pinned from their GitHub releases, so a
 silently repointed release URL cannot swap a binary. The `uv audit` run
 goes through the pinned uv itself, which reuses the lockfile.
 
-`yamllint` and `github-actions-lint` (`actionlint`) are correctness
-checks, not scanners, so they are not part of `security`. The shared
-`check` job runs them right after `Regeneration drift check`, linting
-the YAML projen would commit (workflow files, `dependabot.yml`,
-`.pre-commit-config.yaml`) — a finding fails `check`, which gates both
-`build.yml` and `deploy.yml`.
+`yamllint`, `github-actions-lint` (`actionlint`) and `toml-lint`
+(`taplo`) are correctness checks, not scanners, so they are not part of
+`security`. The shared `check` job runs them right after `Regeneration
+drift check`, validating the YAML and TOML projen would commit
+(workflow files, `dependabot.yml`, `.pre-commit-config.yaml`, the
+policy TOMLs) — a finding fails `check`, which gates both `build.yml`
+and `deploy.yml`. The `toml-lint` file selection lives in
+`taplo.toml` (projen-managed); the generated `uv.lock` is excluded.
 
 | scanner              | tool                 | input               | policy file      | local task                     |
 | -------------------- | -------------------- | ------------------- | ---------------- | ------------------------------ |
@@ -146,11 +148,11 @@ to that job's `steps` mapping in `projen_config.py`. The scan is
 vacuous until resources are added. The full investigation notes live in
 PR #5.
 Local prerequisites: `gitleaks`, `opengrep`, `trivy`, `zizmor`,
-`actionlint`, `osv-scanner` and `hadolint` (standalone binaries) plus
+`actionlint`, `taplo`, `osv-scanner` and `hadolint` (standalone binaries) plus
 `checkov` (via `uvx`) must be on `PATH` to run their tasks (pin the versions used
 by CI - see the install steps in `.github/workflows/security.yml` and,
-for `actionlint`, in the shared `check` job of `build.yml` and
-`deploy.yml`). The `uv` version used by your
+for `actionlint` and `taplo`, in the shared `check` job of `build.yml`
+and `deploy.yml`). The `uv` version used by your
 shell only has to satisfy `uv audit`; the `checkov` task also needs the
 CDK CLI to synthesize `cdk.out/`.
 Manual one-time changes are now minimal; both were applied via the GitHub

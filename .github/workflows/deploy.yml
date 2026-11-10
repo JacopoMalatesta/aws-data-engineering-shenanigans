@@ -56,6 +56,15 @@ jobs:
           sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
           actionlint --version
           npx projen@0.104.17 github-actions-lint
+      - name: TOML lint
+        id: toml_lint
+        run: |-
+          curl -fsSL -o /tmp/taplo.gz https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-linux-x86_64.gz
+          printf '%s  %s\n' 8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156 /tmp/taplo.gz | sha256sum --check --strict -
+          gunzip /tmp/taplo.gz
+          sudo install -m 0755 /tmp/taplo /usr/local/bin/taplo
+          taplo --version
+          npx projen@0.104.17 toml-lint
       - name: Python lint
         id: python_lint
         run: npx projen@0.104.17 lint
