@@ -188,6 +188,15 @@
         }
       ]
     },
+    "github-actions-lint": {
+      "name": "github-actions-lint",
+      "description": "Lint GitHub Actions workflows with actionlint",
+      "steps": [
+        {
+          "exec": "actionlint"
+        }
+      ]
+    },
     "install": {
       "name": "install",
       "description": "Install dependencies and update lockfile",
@@ -316,16 +325,10 @@
           "spawn": "security:git-hub-actions-scan"
         },
         {
-          "spawn": "security:git-hub-actions-lint"
-        },
-        {
           "spawn": "security:sca-multi-language"
         },
         {
           "spawn": "security:dockerfile-lint"
-        },
-        {
-          "spawn": "security:yaml-lint"
         }
       ]
     },
@@ -335,15 +338,6 @@
       "steps": [
         {
           "exec": "find . -name 'Dockerfile*' -not -path './.venv/*' -not -path '*/node_modules/*' -exec hadolint {} +"
-        }
-      ]
-    },
-    "security:git-hub-actions-lint": {
-      "name": "security:git-hub-actions-lint",
-      "description": "Lint GitHub Actions workflows with actionlint",
-      "steps": [
-        {
-          "exec": "actionlint"
         }
       ]
     },
@@ -407,15 +401,6 @@
       "steps": [
         {
           "exec": "gitleaks detect --no-banner --config .gitleaks.toml"
-        }
-      ]
-    },
-    "security:yaml-lint": {
-      "name": "security:yaml-lint",
-      "description": "Lint YAML files with yamllint",
-      "steps": [
-        {
-          "exec": "uvx --isolated yamllint@1.38.0 ."
         }
       ]
     },
@@ -486,6 +471,15 @@
             "cdk",
             "watch"
           ]
+        }
+      ]
+    },
+    "yaml-lint": {
+      "name": "yaml-lint",
+      "description": "Lint YAML files with yamllint",
+      "steps": [
+        {
+          "exec": "uvx --isolated yamllint@1.38.0 ."
         }
       ]
     }

@@ -279,7 +279,7 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
         "description": "Static analysis of GitHub Actions workflows",
         "exec": "zizmor .",
     },
-    TaskName.SECURITY_GITHUB_ACTIONS_LINT: {
+    TaskName.GITHUB_ACTIONS_LINT: {
         "description": "Lint GitHub Actions workflows with actionlint",
         "exec": "actionlint",
     },
@@ -295,7 +295,7 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
         ),
     },
     # PyPI-only tool: uvx (isolated) instead of the curl/sha256 binary pattern.
-    TaskName.SECURITY_YAML_LINT: {
+    TaskName.YAML_LINT: {
         "description": "Lint YAML files with yamllint",
         "exec": f"uvx --isolated yamllint@{YAMLLINT_VERSION} .",
     },
@@ -311,10 +311,8 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             TaskName.SECURITY_MISCONFIG_SCAN,
             TaskName.SECURITY_IAC_SCAN,
             TaskName.SECURITY_GITHUB_ACTIONS_SCAN,
-            TaskName.SECURITY_GITHUB_ACTIONS_LINT,
             TaskName.SECURITY_SCA_MULTI_LANGUAGE,
             TaskName.SECURITY_DOCKERFILE_LINT,
-            TaskName.SECURITY_YAML_LINT,
         ],
     },
 }
@@ -578,6 +576,30 @@ CHECK_JOB: Final[GitHubJobSpec] = {
             "run": f"{PROJEN_RUN} --no-post --debug",
         },
         JobStepName.REGEN_DRIFT_CHECK: {"run": "git diff --exit-code"},
+        JobStepName.YAML_LINT: {
+            "run": (
+                f"uvx --isolated yamllint@{YAMLLINT_VERSION} --version\n"
+                f"{PROJEN_RUN} {TaskName.YAML_LINT}"
+            ),
+        },
+        JobStepName.GITHUB_ACTIONS_LINT: {
+            "run": (
+                "curl -fsSL -o /tmp/actionlint.tar.gz "
+                "https://github.com/rhysd/actionlint/releases/"
+                "download/"
+                f"v{ACTIONLINT_VERSION}/"
+                f"actionlint_{ACTIONLINT_VERSION}_linux_amd64.tar.gz\n"
+                f"printf '%s  %s\\n' "
+                f"{ACTIONLINT_LINUX_AMD64_TARBALL_SHA256}"
+                " /tmp/actionlint.tar.gz | sha256sum --check"
+                " --strict -\n"
+                "tar -xzf /tmp/actionlint.tar.gz -C /tmp\n"
+                "sudo install -m 0755 /tmp/actionlint "
+                "/usr/local/bin/actionlint\n"
+                "actionlint --version\n"
+                f"{PROJEN_RUN} {TaskName.GITHUB_ACTIONS_LINT}"
+            ),
+        },
         JobStepName.PYTHON_LINT: {
             "run": f"{PROJEN_RUN} {TaskName.PYTHON_LINT}",
         },
@@ -788,25 +810,6 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                             f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_SCAN}"
                         ),
                     },
-                    JobStepName.GITHUB_ACTIONS_LINT: {
-                        "background": True,
-                        "run": (
-                            "curl -fsSL -o /tmp/actionlint.tar.gz "
-                            "https://github.com/rhysd/actionlint/releases/"
-                            "download/"
-                            f"v{ACTIONLINT_VERSION}/"
-                            f"actionlint_{ACTIONLINT_VERSION}_linux_amd64.tar.gz\n"
-                            f"printf '%s  %s\\n' "
-                            f"{ACTIONLINT_LINUX_AMD64_TARBALL_SHA256}"
-                            " /tmp/actionlint.tar.gz | sha256sum --check"
-                            " --strict -\n"
-                            "tar -xzf /tmp/actionlint.tar.gz -C /tmp\n"
-                            "sudo install -m 0755 /tmp/actionlint "
-                            "/usr/local/bin/actionlint\n"
-                            "actionlint --version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_LINT}"
-                        ),
-                    },
                     JobStepName.SCA_MULTI_LANGUAGE: {
                         "background": True,
                         "run": (
@@ -835,13 +838,6 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                             "/usr/local/bin/hadolint\n"
                             "hadolint --version\n"
                             f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
-                        ),
-                    },
-                    JobStepName.YAML_LINT: {
-                        "background": True,
-                        "run": (
-                            f"uvx --isolated yamllint@{YAMLLINT_VERSION} --version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_YAML_LINT}"
                         ),
                     },
                     JobStepName.WAIT_FOR_SCANS: {"wait_all": True},

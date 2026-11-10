@@ -75,13 +75,20 @@ commitlint's built-in ignores.
 
 ## Security checks
 
-Nine scanners run in parallel (as background steps) in the `scan` job of
+Eight scanners run in parallel (as background steps) in the `scan` job of
 the `security` workflow on every pull request, and locally via the
 `security` task (each scanner has its own `security:<name>` task). All
-tool versions are pinned in `projen_config.py`; CI downloads the seven
+tool versions are pinned in `projen_config.py`; CI downloads the six
 standalone binaries digest-pinned from their GitHub releases, so a
 silently repointed release URL cannot swap a binary. The `uv audit` run
 goes through the pinned uv itself, which reuses the lockfile.
+
+`yamllint` and `github-actions-lint` (`actionlint`) are correctness
+checks, not scanners, so they are not part of `security`. The shared
+`check` job runs them right after `Regeneration drift check`, linting
+the YAML projen would commit (workflow files, `dependabot.yml`,
+`.pre-commit-config.yaml`) — a finding fails `check`, which gates both
+`build.yml` and `deploy.yml`.
 
 | scanner              | tool                 | input               | policy file      | local task                     |
 | -------------------- | -------------------- | ------------------- | ---------------- | ------------------------------ |
@@ -91,7 +98,6 @@ goes through the pinned uv itself, which reuses the lockfile.
 | `sca-python`         | `uv audit` (preview) | `uv.lock`           | `uv.toml`        | `security:sca-python`          |
 | `iac-scan`           | `checkov`            | synthesized CF template (`cdk.out/`) | `.checkov.yaml` | `security:iac-scan` |
 | `github-actions-scan` | `zizmor`            | `.github/workflows` | `zizmor.yml`     | `security:git-hub-actions-scan` |
-| `github-actions-lint` | `actionlint`        | `.github/workflows` | `.github/actionlint.yaml` | `security:git-hub-actions-lint` |
 | `sca-multi-language` | `osv-scanner`        | manifests and lockfiles | `osv-scanner.toml` | `security:sca-multi-language` |
 | `dockerfile-lint`    | `hadolint`           | Dockerfiles         | `.hadolint.yaml` | `security:dockerfile-lint`     |
 
@@ -142,8 +148,9 @@ PR #5.
 Local prerequisites: `gitleaks`, `opengrep`, `trivy`, `zizmor`,
 `actionlint`, `osv-scanner` and `hadolint` (standalone binaries) plus
 `checkov` (via `uvx`) must be on `PATH` to run their tasks (pin the versions used
-by CI - see the install steps in
-`.github/workflows/security.yml`). The `uv` version used by your
+by CI - see the install steps in `.github/workflows/security.yml` and,
+for `actionlint`, in the shared `check` job of `build.yml` and
+`deploy.yml`). The `uv` version used by your
 shell only has to satisfy `uv audit`; the `checkov` task also needs the
 CDK CLI to synthesize `cdk.out/`.
 Manual one-time changes are now minimal; both were applied via the GitHub

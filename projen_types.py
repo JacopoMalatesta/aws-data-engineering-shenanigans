@@ -51,7 +51,9 @@ class TaskName(StrEnum):
 
     Values are the task names; members are scope labels (``PYTHON_*``
     Python-source quality gates, ``CDK_*`` ``cdk`` CLI wrappers,
-    ``SECURITY_*`` repo and lockfile scans). ``CDK_DEPLOY``, ``CDK_DIFF``,
+    ``SECURITY_*`` repo and lockfile scans; standalone ``YAML_LINT`` and
+    ``GITHUB_ACTIONS_LINT`` are correctness lint gates owned by the
+    ``check`` job, not security scanners). ``CDK_DEPLOY``, ``CDK_DIFF``,
     ``CDK_SYNTH_SILENT``, ``TEST`` and ``PACKAGE`` are projen built-ins;
     ``CDK_SYNTH`` is a projen built-in whose behavior ``PROJEN_TASKS``
     overrides for strict synthesis; the rest are declared in
@@ -70,7 +72,7 @@ class TaskName(StrEnum):
     PACKAGE = "package"
     SECURITY = "security"
     SECURITY_DOCKERFILE_LINT = "security:dockerfile-lint"
-    SECURITY_GITHUB_ACTIONS_LINT = "security:git-hub-actions-lint"
+    GITHUB_ACTIONS_LINT = "github-actions-lint"
     SECURITY_GITHUB_ACTIONS_SCAN = "security:git-hub-actions-scan"
     SECURITY_IAC_SCAN = "security:iac-scan"
     SECURITY_MISCONFIG_SCAN = "security:misconfig-scan"
@@ -78,7 +80,7 @@ class TaskName(StrEnum):
     SECURITY_SCA_MULTI_LANGUAGE = "security:sca-multi-language"
     SECURITY_SCA_PYTHON = "security:sca-python"
     SECURITY_SECRET_SCAN = "security:secret-scan"  # ruff: ignore[hardcoded-password-string]
-    SECURITY_YAML_LINT = "security:yaml-lint"
+    YAML_LINT = "yaml-lint"
     PYTHON_STATIC_ANALYSIS = "static-analysis"
     CDK_SYNTH = "synth"
     CDK_SYNTH_SILENT = "synth:silent"
