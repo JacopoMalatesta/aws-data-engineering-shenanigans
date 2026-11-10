@@ -95,6 +95,7 @@ tmp/
 !/.github/actionlint.yaml
 !/.hadolint.yaml
 !/.yamllint.yaml
+!/taplo.toml
 !/osv-scanner.toml
 !/.checkov.yaml
 !/.github/dependabot.yml

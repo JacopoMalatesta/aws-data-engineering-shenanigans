@@ -23,6 +23,7 @@
     "cdk.json",
     "osv-scanner.toml",
     "pyproject.toml",
+    "taplo.toml",
     "trivy.yaml",
     "zizmor.yml"
   ],

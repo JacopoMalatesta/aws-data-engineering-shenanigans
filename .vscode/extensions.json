@@ -3,6 +3,7 @@
   "recommendations": [
     "astral-sh.ty",
     "charliermarsh.ruff",
-    "detachhead.basedpyright"
+    "detachhead.basedpyright",
+    "tamasfe.even-better-toml"
   ]
 }
