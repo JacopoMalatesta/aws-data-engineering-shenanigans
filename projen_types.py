@@ -134,6 +134,7 @@ class WorkflowName(StrEnum):
     BUILD = "build"
     COMMIT_LINT = "commitlint"
     DEPLOY = "deploy"
+    PR_REVIEWER = "pr-reviewer"
     SECURITY = "security"
 
 
@@ -155,6 +156,7 @@ class JobName(StrEnum):
     CHECK = "check"
     COMMIT_LINT = "commitlint"
     DEPLOY = "deploy"
+    REVIEW_CODE = "review-code"
     SCAN = "scan"
 
 
@@ -178,34 +180,35 @@ class JobStepName(StrEnum):
     CDK_SYNTH = "CDK synth"
     CHECKOUT = "Checkout repository"
     CHECKOUT_FULL_HISTORY = "Checkout repository (full history)"
+    CODE_REVIEW = "Trigger code review"
     COMMIT_LINT = "Commit message lint"
     DOCKERFILE_SCAN = "Dockerfile scan"
-    PYTHON_FORMAT_CHECK = "Python format check"
-    GITHUB_ACTIONS_SCAN = "GitHub Actions scan"
     GITHUB_ACTIONS_LINT = "GitHub Actions lint"
+    GITHUB_ACTIONS_SCAN = "GitHub Actions scan"
     IAC_SCAN = "IaC scan"
     INSTALL_CDK_CLI = "Install CDK CLI"
-    INSTALL_PYTHON_DEPENDENCIES = "Install Python dependencies"
+    INSTALL_NODE = "Install Node"
     INSTALL_PROJEN_CLI = "Install projen CLI"
-    PYTHON_LINT = "Python lint"
+    INSTALL_PYTHON_DEPENDENCIES = "Install Python dependencies"
+    INSTALL_UV = "Install uv"
     MISCONFIG_SCAN = "Misconfig scan"
-    PYTHON_PACKAGE = "Package Python code"
     POST_CDK_DIFF = "Post CDK diff"
+    PYTHON_DEPENDENCY_LINT = "Python dependency lint"
+    PYTHON_FORMAT_CHECK = "Python format check"
+    PYTHON_LINT = "Python lint"
+    PYTHON_PACKAGE = "Package Python code"
+    PYTHON_STATIC_ANALYSIS = "Python static analysis"
+    PYTHON_TYPECHECK = "Python typecheck"
+    PYTHON_UNIT_TESTS = "Python unit tests"
     REGENERATE_PROJEN_FILES = "Regenerate projen files"
     REGEN_DRIFT_CHECK = "Regeneration drift check"
     SAST_SCAN = "SAST scan"
     SCA_MULTI_LANGUAGE = "SCA multi-language"
     SCA_PYTHON = "SCA Python"
     SECRET_SCAN = "Secret scan"  # ruff: ignore[hardcoded-password-string] - YAML step label, not a credential
-    INSTALL_NODE = "Install Node"
-    INSTALL_UV = "Install uv"
-    PYTHON_STATIC_ANALYSIS = "Python static analysis"
-    PYTHON_DEPENDENCY_LINT = "Python dependency lint"
-    PYTHON_TYPECHECK = "Python typecheck"
-    PYTHON_UNIT_TESTS = "Python unit tests"
+    TOML_LINT = "TOML lint"
     WAIT_FOR_SCANS = "Wait for scans"
     YAML_LINT = "YAML lint"
-    TOML_LINT = "TOML lint"
 
 
 class GitHubPermission(StrEnum):
@@ -241,6 +244,7 @@ class GitHubJobStepSpec(TypedDict):
     uses: NotRequired[str]
     with_: NotRequired[dict[str, JsonValue]]
     env: NotRequired[dict[str, str]]
+    if_: NotRequired[str]
     background: NotRequired[bool]
     wait_all: NotRequired[bool]
 
@@ -279,6 +283,7 @@ class WorkflowTriggers(TypedDict):
     """
 
     pull_request: NotRequired[dict[str, JsonValue]]
+    pull_request_target: NotRequired[dict[str, JsonValue]]
     push: NotRequired[dict[str, JsonValue]]
     workflow_dispatch: NotRequired[dict[str, JsonValue]]
 

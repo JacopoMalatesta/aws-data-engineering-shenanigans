@@ -14,6 +14,8 @@ ignore: |-
 rules:
   truthy:
     check-keys: false
+    ignore: |
+      .coderabbit.yaml
   document-start: disable
   line-length:
     max: 160

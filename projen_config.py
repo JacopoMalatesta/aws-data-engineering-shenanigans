@@ -14,6 +14,9 @@ from constants import (
     AWS_CREDENTIALS_V6_PIN,
     CHECKOUT_V7_PIN,
     CHECKOV_VERSION,
+    CODE_RABBIT_IGNORE_TITLE_KEYWORDS,
+    CODE_RABBIT_IGNORED_USERNAMES,
+    CODE_REVIEW_TRIGGER,
     COMMITLINT_CLI_VERSION,
     COMMITLINT_CONFIG_CONVENTIONAL_VERSION,
     COMMITLINT_RULE_CONDITION_ALWAYS,
@@ -385,6 +388,83 @@ PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
     },
 ]
 
+# CodeRabbit tools relevant to this repo's file types, disabled to avoid CI duplication.
+CODERABBIT_TOOLS: Final[tuple[str, ...]] = (
+    "actionlint",
+    "ast-grep",
+    "biome",
+    "flake8",
+    "github-checks",
+    "gitleaks",
+    "languagetool",
+    "markdownlint",
+    "opengrep",
+    "osvScanner",
+    "presidio",
+    "pylint",
+    "ruff",
+    "semgrep",
+    "trufflehog",
+    "yamllint",
+    "zizmor",
+)
+
+CODERABBIT_CONFIG: Final[dict[str, JsonValue]] = {
+    "language": "en-US",
+    "early_access": True,
+    "chat": {"art": False},
+    "knowledge_base": {
+        "code_guidelines": {"enabled": True},
+        "learnings": {"scope": "auto"},
+        "web_search": {"enabled": True},
+    },
+    "reviews": {
+        "profile": "assertive",
+        "auto_review": {
+            "enabled": True,
+            "auto_incremental_review": True,
+            "auto_pause_after_reviewed_commits": 0,
+            "drafts": False,
+            "ignore_title_keywords": cast(
+                "list[JsonValue]", CODE_RABBIT_IGNORE_TITLE_KEYWORDS
+            ),
+            "ignore_usernames": cast("list[JsonValue]", CODE_RABBIT_IGNORED_USERNAMES),
+        },
+        "high_level_summary": True,
+        "high_level_summary_in_walkthrough": True,
+        "sequence_diagrams": False,
+        "estimate_code_review_effort": False,
+        "in_progress_fortune": False,
+        "suggested_reviewers": False,
+        "review_status": True,
+        "review_info": True,
+        "review_details": False,
+        "slop_detection": {
+            "enabled": True,
+            "include_all_authors": True,
+            "label": "slop",
+        },
+        "auto_approvals": {"enabled": False},
+        "pre_merge_checks": {
+            "title": {"mode": "off"},
+            "description": {"mode": "warning"},
+        },
+        "path_filters": [
+            "!dist/**",
+            "!cdk.out/**",
+            "!.projen/**",
+            "!uv.lock",
+            "!.venv/**",
+            "!.pytest_cache/**",
+            "!.ruff_cache/**",
+            "!.coverage",
+            "!tmp/**",
+            "!*.egg-info/**",
+        ],
+        "tools": {tool: {"enabled": False} for tool in CODERABBIT_TOOLS},
+    },
+}
+
 PROJECT_FILES: Final[dict[str, FileSpec]] = {
     ".pre-commit-config.yaml": {
         "file_type": FileType.YAML,
@@ -442,7 +522,10 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
                         "security.yml",
                     ]
                 },
-                "dangerous-triggers": {"ignore": ["pull-request-lint.yml"]},
+                # Both jobs are payload-only (no PR checkout/execution).
+                "dangerous-triggers": {
+                    "ignore": ["pull-request-lint.yml", "pr-reviewer.yml"]
+                },
             }
         },
     },
@@ -484,8 +567,13 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
                 ".git/"
             ),
             "rules": {
-                # GH Actions 'on:' key trips the truthy check.
-                "truthy": {"check-keys": False},
+                # Disable key checks: GitHub's `on:` key reads as the YAML 1.1
+                # boolean true. Ignore .coderabbit.yaml: its mode value is the
+                # string "off", which the YAML 1.2 serializer emits unquoted.
+                "truthy": {
+                    "check-keys": False,
+                    "ignore": ".coderabbit.yaml\n",
+                },
                 # Projen never emits a leading '---'.
                 "document-start": "disable",
                 "line-length": {"max": 160},
@@ -519,6 +607,10 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
     ".checkov.yaml": {
         "file_type": FileType.YAML,
         "obj": {"framework": ["cloudformation"], "directory": "cdk.out"},
+    },
+    ".coderabbit.yaml": {
+        "file_type": FileType.YAML,
+        "obj": CODERABBIT_CONFIG,
     },
     ".github/dependabot.yml": {
         "file_type": FileType.YAML,
@@ -558,9 +650,9 @@ DEPLOYMENT_ENVIRONMENTS: Final[list[DeploymentEnvironment]] = [
 
 CI_RUNNERS: Final = ["ubuntu-latest"]
 
-# Steps referenced by more than one job, hoisted for single-sourcing;
-# single-use steps are declared inline in the prelude or in their job's
-# ``steps`` mapping.
+# Steps and step fragments referenced by more than one job, hoisted for
+# single-sourcing; single-use steps are declared inline in the prelude
+# or in their job's ``steps`` mapping.
 AWS_CREDENTIALS_STEP: Final[GitHubJobStepSpec] = {
     "uses": AWS_CREDENTIALS_V6_PIN,
     "with_": {
@@ -571,6 +663,11 @@ AWS_CREDENTIALS_STEP: Final[GitHubJobStepSpec] = {
 INSTALL_NODE_STEP: Final[GitHubJobStepSpec] = {
     "uses": SETUP_NODE_V7_PIN,
     "with_": {"node-version": NODE_VERSION},
+}
+PR_COMMENT_ENV: Final = {
+    "GH_REPO": "${{ github.repository }}",
+    "GH_TOKEN": "${{ github.token }}",
+    "PR_NUMBER": "${{ github.event.pull_request.number }}",
 }
 
 # Setup shared by several jobs
@@ -692,10 +789,7 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                         "run": f"{PROJEN_RUN} {TaskName.CDK_DIFF} > cdk-diff.txt || true",
                     },
                     JobStepName.POST_CDK_DIFF: {
-                        "env": {
-                            "GH_TOKEN": "${{ github.token }}",
-                            "PR_NUMBER": "${{ github.event.pull_request.number }}",
-                        },
+                        "env": PR_COMMENT_ENV,
                         "run": POST_CDK_DIFF,
                     },
                 },
@@ -759,6 +853,31 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                             f"{PROJEN_RUN} deploy "
                             f'"*-${{{{ matrix.environment_name }}}}"'
                         ),
+                    },
+                },
+            },
+        },
+    },
+    WorkflowName.PR_REVIEWER: {
+        "on": {
+            "pull_request_target": {
+                "types": [
+                    "edited",
+                    "opened",
+                    "ready_for_review",
+                    "reopened",
+                    "synchronize",
+                ],
+            },
+        },
+        "jobs": {
+            JobName.REVIEW_CODE: {
+                "runs_on": CI_RUNNERS,
+                "permissions": {"pull_requests": GitHubPermission.WRITE},
+                "steps": {
+                    JobStepName.CODE_REVIEW: {
+                        "env": PR_COMMENT_ENV,
+                        "run": CODE_REVIEW_TRIGGER,
                     },
                 },
             },
