@@ -49,6 +49,21 @@ repos:
         language: unsupported
         pass_filenames: false
         files: \.py$|pyproject\.toml$
+      - id: shfmt
+        name: shfmt
+        entry: ./.venv/bin/shfmt
+        args:
+          - -w
+        language: unsupported
+        types:
+          - shell
+      - id: shellcheck
+        name: shellcheck
+        entry: ./.venv/bin/shellcheck
+        args: []
+        language: unsupported
+        types:
+          - shell
       - id: commitlint
         name: commitlint
         entry: commitlint

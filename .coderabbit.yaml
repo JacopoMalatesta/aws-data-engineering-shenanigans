@@ -84,6 +84,8 @@ reviews:
       enabled: false
     semgrep:
       enabled: false
+    shellcheck:
+      enabled: false
     trufflehog:
       enabled: false
     yamllint:

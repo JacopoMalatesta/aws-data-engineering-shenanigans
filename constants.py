@@ -1,80 +1,30 @@
 """Single source of truth for repo-wide constants.
 
-Tool and workflow constants, plus the shell snippets that the CI
-workflows run. Consumed by ``.projenrc.py`` and ``projen_config.py``.
+Tool and workflow constants, plus the contents of the CI shell scripts
+under ``scripts/`` (inlined into ``run:`` blocks at synth time).
+Consumed by ``.projenrc.py`` and ``projen_config.py``.
 """
 
+from pathlib import Path
 from typing import Final
 
 PYTHON_VERSION: Final = "3.13"
 NODE_VERSION: Final = "24"
 PROJEN_RUN: Final = "npx projen@0.104.17"
+INSTALL_TOOL: Final = "bash scripts/install-tool.sh"
+UTF_8: Final = "utf-8"
 
-POST_CDK_DIFF: Final = """\
-DIFF_BODY_FILE=cdk-diff-comment.md
-{
-  echo '<!-- cdk-diff -->'
-  echo '## 📋 cdk diff'
-  if [ -s cdk-diff.txt ]; then
-    echo '```text'
-    cat cdk-diff.txt
-    echo '```'
-  else
-    echo '✅ No infrastructure changes.'
-  fi
-} > "$DIFF_BODY_FILE"
-# Edit only the marked cdk-diff comment (--edit-last would rewrite the
-# reviewer's trigger comment); post fresh if none found.
-# Search every comment page (--paginate applies the filter per page, so the
-# last-id pick happens in bash across the flattened stream).
-COMMENT_ID="$(gh api --paginate "repos/$GH_REPO/issues/$PR_NUMBER/comments?per_page=100" --jq '
-  .[]
-  | select(
-    .user.login == "github-actions[bot]"
-    and (.body | contains("<!-- cdk-diff -->"))
-  )
-  | .id' | tail -n1)"
-if [ -n "$COMMENT_ID" ]; then
-  gh api -X PATCH "repos/$GH_REPO/issues/comments/$COMMENT_ID" -F body=@"$DIFF_BODY_FILE" > /dev/null
-else
-  gh api -X POST "repos/$GH_REPO/issues/$PR_NUMBER/comments" -F body=@"$DIFF_BODY_FILE" > /dev/null
-fi
-"""
+# The scripts/ files are the hand-edited sources of truth; the generated
+# workflows embed copies that CI's regeneration drift check keeps in
+# lockstep.
+_SCRIPTS_DIR: Final = Path(__file__).resolve().parent / "scripts"
+POST_CDK_DIFF: Final = (_SCRIPTS_DIR / "post-cdk-diff.sh").read_text(encoding=UTF_8)
+CODE_REVIEW_TRIGGER: Final = (_SCRIPTS_DIR / "trigger-code-review.sh").read_text(
+    encoding=UTF_8
+)
 
 CODE_RABBIT_IGNORE_TITLE_KEYWORDS: Final = ["WIP", "[skip review]", "DO NOT REVIEW"]
 CODE_RABBIT_IGNORED_USERNAMES: Final = ["dependabot[bot]"]
-_QUOTED_KEYWORDS: Final = " ".join(
-    f'"{keyword}"' for keyword in CODE_RABBIT_IGNORE_TITLE_KEYWORDS
-)
-_BOT_LOGIN_CONDITION: Final = " || ".join(
-    f'[ "$login" = "{username}" ]' for username in CODE_RABBIT_IGNORED_USERNAMES
-)
-
-# Trigger script for the PR reviewer workflow: reads the event payload
-# from GITHUB_EVENT_PATH, applies the skip rules below, then comments
-# "@coderabbitai review" (fresh comment per event — editing wouldn't re-trigger).
-CODE_REVIEW_TRIGGER: Final = f"""\
-action="$(jq -r '.action' "$GITHUB_EVENT_PATH")"
-draft="$(jq -r '.pull_request.draft' "$GITHUB_EVENT_PATH")"
-login="$(jq -r '.pull_request.user.login' "$GITHUB_EVENT_PATH")"
-title="$(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")"
-title_change="$(jq -r '.changes.title // empty' "$GITHUB_EVENT_PATH")"
-if [ "$action" = "edited" ] && [ -z "$title_change" ]; then
-  echo "Skipping review trigger: edit did not change the title."
-  exit 0
-fi
-if [ "$draft" = "true" ] || {_BOT_LOGIN_CONDITION}; then
-  echo "Skipping review trigger: draft PR or ignored bot author."
-  exit 0
-fi
-for keyword in {_QUOTED_KEYWORDS}; do
-  if printf '%s' "$title" | grep -qiF -- "$keyword"; then
-    echo "Skipping review trigger: PR title contains '$keyword'."
-    exit 0
-  fi
-done
-gh pr comment "$PR_NUMBER" --body "@coderabbitai review"
-"""
 
 GITLEAKS_VERSION: Final = "8.30.1"
 GITLEAKS_LINUX_X64_TARBALL_SHA256: Final = (
@@ -120,6 +70,14 @@ OSV_SCANNER_LINUX_AMD64_SHA256: Final = (
 HADOLINT_LINUX_X86_64_SHA256: Final = (
     "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
 )
+SHELLCHECK_VERSION: Final = "0.11.0"
+SHELLCHECK_LINUX_X64_TARBALL_SHA256: Final = (
+    "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6"
+)
+SHFMT_VERSION: Final = "3.14.1"
+SHFMT_LINUX_AMD64_SHA256: Final = (
+    "76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf"
+)
 
 # Dependabot needs release-tag commits: untagged SHAs drift to the branch
 # head (dependabot-core#14716). No "#" suffixes — projen would quote them,
@@ -138,6 +96,9 @@ FASTAPI_RUFF_RULESET: Final = "FAST"
 NUMPY_RUFF_RULESET: Final = "NPY"
 PANDAS_RUFF_RULESET: Final = "PD"
 
+PRE_COMMIT_FILE_TYPE_PYTHON: Final = "python"
+PRE_COMMIT_FILE_TYPE_PYI: Final = "pyi"
+PRE_COMMIT_FILE_TYPE_SHELL: Final = "shell"
 PRE_COMMIT_LANGUAGE_UNSUPPORTED: Final = "unsupported"
 PRE_COMMIT_LANGUAGE_NODE: Final = "node"
 # Use the developer's PATH node instead of nodeenv-managed downloads.

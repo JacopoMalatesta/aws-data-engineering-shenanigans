@@ -3,6 +3,7 @@
 This module stores configuration only. It never creates projen resources.
 """
 
+import json
 from typing import Final, cast
 
 from aws_cdk.region_info import RegionInfo
@@ -28,6 +29,7 @@ from constants import (
     GITLEAKS_VERSION,
     HADOLINT_LINUX_X86_64_SHA256,
     HADOLINT_VERSION,
+    INSTALL_TOOL,
     NODE_VERSION,
     NUMPY_RUFF_RULESET,
     OPENGREP_MANYLINUX_X86_SHA256,
@@ -36,6 +38,9 @@ from constants import (
     OSV_SCANNER_VERSION,
     PANDAS_RUFF_RULESET,
     POST_CDK_DIFF,
+    PRE_COMMIT_FILE_TYPE_PYI,
+    PRE_COMMIT_FILE_TYPE_PYTHON,
+    PRE_COMMIT_FILE_TYPE_SHELL,
     PRE_COMMIT_LANGUAGE_NODE,
     PRE_COMMIT_LANGUAGE_UNSUPPORTED,
     PRE_COMMIT_LANGUAGE_VERSION_SYSTEM,
@@ -43,6 +48,10 @@ from constants import (
     PYTHON_VERSION,
     SETUP_NODE_V7_PIN,
     SETUP_UV_V10_PIN,
+    SHELLCHECK_LINUX_X64_TARBALL_SHA256,
+    SHELLCHECK_VERSION,
+    SHFMT_LINUX_AMD64_SHA256,
+    SHFMT_VERSION,
     TAPLO_LINUX_X64_GZIP_SHA256,
     TAPLO_VERSION,
     TRIVY_LINUX_64BIT_TARBALL_SHA256,
@@ -106,6 +115,8 @@ DEV_DEPS: Final = [
     "pre-commit@4.6.2",
     "pytest-cov@7.1.0",
     "ruff@0.17.2",
+    "shellcheck-py@0.11.0.1",
+    "shfmt-py@4.2.0",
     "ty@0.0.92",
 ]
 
@@ -242,7 +253,9 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
         "exec": "ty check --error-on-warning .",
     },
     TaskName.PYTHON_CHECK: {
-        "description": "Run all static checks: lint, format check, type check",
+        "description": (
+            "Run all Python static checks: lint, format, types, dependencies"
+        ),
         "spawns": [
             TaskName.PYTHON_LINT,
             TaskName.PYTHON_FORMAT_CHECK,
@@ -309,6 +322,21 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
         "description": "Lint TOML files with taplo",
         "exec": "taplo lint",
     },
+    TaskName.SHELL_LINT: {
+        "description": "Lint shell scripts with shellcheck (.shellcheckrc config)",
+        "exec": "shellcheck scripts/*.sh",
+    },
+    TaskName.SHELL_FORMAT_CHECK: {
+        "description": "Verify shell formatting with shfmt (.editorconfig style)",
+        "exec": "shfmt --diff scripts",
+    },
+    TaskName.SHELL_CHECK: {
+        "description": "Run all shell checks: lint and format verification",
+        "spawns": [
+            TaskName.SHELL_LINT,
+            TaskName.SHELL_FORMAT_CHECK,
+        ],
+    },
     TaskName.SECURITY: {
         "description": (
             "Run all security scanners: dependency audit, secret history, "
@@ -339,7 +367,7 @@ PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
         "entry": f"{VIRTUAL_ENV_BINARY_DIR}ruff",
         "args": ["check", "--fix"],
         "language": PRE_COMMIT_LANGUAGE_UNSUPPORTED,
-        "types_or": ["python", "pyi"],
+        "types_or": [PRE_COMMIT_FILE_TYPE_PYTHON, PRE_COMMIT_FILE_TYPE_PYI],
     },
     {
         "id": "ruff-format",
@@ -347,7 +375,7 @@ PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
         "entry": f"{VIRTUAL_ENV_BINARY_DIR}ruff",
         "args": ["format"],
         "language": PRE_COMMIT_LANGUAGE_UNSUPPORTED,
-        "types_or": ["python", "pyi"],
+        "types_or": [PRE_COMMIT_FILE_TYPE_PYTHON, PRE_COMMIT_FILE_TYPE_PYI],
     },
     {
         "id": "ty-check",
@@ -377,6 +405,22 @@ PRE_COMMIT_HOOKS: Final[list[PreCommitHookSpec]] = [
         "files": r"\.py$|pyproject\.toml$",
     },
     {
+        "id": "shfmt",
+        "name": "shfmt",
+        "entry": f"{VIRTUAL_ENV_BINARY_DIR}shfmt",
+        "args": ["-w"],
+        "language": PRE_COMMIT_LANGUAGE_UNSUPPORTED,
+        "types": [PRE_COMMIT_FILE_TYPE_SHELL],
+    },
+    {
+        "id": "shellcheck",
+        "name": "shellcheck",
+        "entry": f"{VIRTUAL_ENV_BINARY_DIR}shellcheck",
+        "args": [],
+        "language": PRE_COMMIT_LANGUAGE_UNSUPPORTED,
+        "types": [PRE_COMMIT_FILE_TYPE_SHELL],
+    },
+    {
         "id": "commitlint",
         "name": "commitlint",
         "entry": "commitlint",
@@ -404,6 +448,7 @@ CODERABBIT_TOOLS: Final[tuple[str, ...]] = (
     "pylint",
     "ruff",
     "semgrep",
+    "shellcheck",
     "trufflehog",
     "yamllint",
     "zizmor",
@@ -464,6 +509,23 @@ CODERABBIT_CONFIG: Final[dict[str, JsonValue]] = {
         "tools": {tool: {"enabled": False} for tool in CODERABBIT_TOOLS},
     },
 }
+
+SHELLCHECK_RC_LINES: Final = [
+    "# shellcheck configuration, rendered by projen from this list — edit here, then re-run npx projen.",
+    "shell=bash",
+    "severity=style",
+    "enable=all",
+]
+
+EDITORCONFIG_LINES: Final = [
+    "# EditorConfig style, rendered by projen from this list — edit here, then re-run npx projen.",
+    "root = true",
+    "",
+    "[*.sh]",
+    "indent_style = space",
+    "indent_size = 2",
+    "",
+]
 
 PROJECT_FILES: Final[dict[str, FileSpec]] = {
     ".pre-commit-config.yaml": {
@@ -638,6 +700,8 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
             ],
         },
     },
+    ".shellcheckrc": {"file_type": FileType.TEXT, "lines": SHELLCHECK_RC_LINES},
+    ".editorconfig": {"file_type": FileType.TEXT, "lines": EDITORCONFIG_LINES},
 }
 
 DEPLOYMENT_ENVIRONMENTS: Final[list[DeploymentEnvironment]] = [
@@ -668,6 +732,13 @@ PR_COMMENT_ENV: Final = {
     "GH_REPO": "${{ github.repository }}",
     "GH_TOKEN": "${{ github.token }}",
     "PR_NUMBER": "${{ github.event.pull_request.number }}",
+}
+# The reviewer script parses its skip rules from JSON env vars so the
+# Python constants stay the single source for .coderabbit.yaml too.
+REVIEW_TRIGGER_ENV: Final = {
+    **PR_COMMENT_ENV,
+    "IGNORE_TITLE_KEYWORDS_JSON": json.dumps(CODE_RABBIT_IGNORE_TITLE_KEYWORDS),
+    "IGNORED_USERNAMES_JSON": json.dumps(CODE_RABBIT_IGNORED_USERNAMES),
 }
 
 # Setup shared by several jobs
@@ -706,37 +777,51 @@ CHECK_JOB: Final[GitHubJobSpec] = {
                 f"{PROJEN_RUN} {TaskName.YAML_LINT}"
             ),
         },
+        # The pinned shellcheck lands on PATH before GitHub Actions lint
+        # runs, upgrading actionlint's embedded run:-block integration from
+        # the runner's unpinned preinstall.
+        JobStepName.SHELL_LINT: {
+            "run": (
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/koalaman/shellcheck/releases/download/"
+                f"v{SHELLCHECK_VERSION}/shellcheck-v{SHELLCHECK_VERSION}"
+                ".linux.x86_64.tar.gz \\\n"
+                f"  --sha256 {SHELLCHECK_LINUX_X64_TARBALL_SHA256} \\\n"
+                "  --tool shellcheck --kind tar\n"
+                "shellcheck --version\n"
+                f"{PROJEN_RUN} {TaskName.SHELL_LINT}"
+            ),
+        },
+        JobStepName.SHELL_FORMAT_CHECK: {
+            "run": (
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/mvdan/sh/releases/download/"
+                f"v{SHFMT_VERSION}/shfmt_v{SHFMT_VERSION}_linux_amd64 \\\n"
+                f"  --sha256 {SHFMT_LINUX_AMD64_SHA256} \\\n"
+                "  --tool shfmt --kind raw\n"
+                "shfmt --version\n"
+                f"{PROJEN_RUN} {TaskName.SHELL_FORMAT_CHECK}"
+            ),
+        },
         JobStepName.GITHUB_ACTIONS_LINT: {
             "run": (
-                "curl -fsSL -o /tmp/actionlint.tar.gz "
-                "https://github.com/rhysd/actionlint/releases/"
-                "download/"
-                f"v{ACTIONLINT_VERSION}/"
-                f"actionlint_{ACTIONLINT_VERSION}_linux_amd64.tar.gz\n"
-                f"printf '%s  %s\\n' "
-                f"{ACTIONLINT_LINUX_AMD64_TARBALL_SHA256}"
-                " /tmp/actionlint.tar.gz | sha256sum --check"
-                " --strict -\n"
-                "tar -xzf /tmp/actionlint.tar.gz -C /tmp\n"
-                "sudo install -m 0755 /tmp/actionlint "
-                "/usr/local/bin/actionlint\n"
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/rhysd/actionlint/releases/download/"
+                f"v{ACTIONLINT_VERSION}/actionlint_{ACTIONLINT_VERSION}"
+                "_linux_amd64.tar.gz \\\n"
+                f"  --sha256 {ACTIONLINT_LINUX_AMD64_TARBALL_SHA256} \\\n"
+                "  --tool actionlint --kind tar\n"
                 "actionlint --version\n"
                 f"{PROJEN_RUN} {TaskName.GITHUB_ACTIONS_LINT}"
             ),
         },
         JobStepName.TOML_LINT: {
             "run": (
-                "curl -fsSL -o /tmp/taplo.gz "
-                "https://github.com/tamasfe/taplo/releases/"
-                "download/"
-                f"{TAPLO_VERSION}/"
-                "taplo-linux-x86_64.gz\n"
-                f"printf '%s  %s\\n' {TAPLO_LINUX_X64_GZIP_SHA256}"
-                " /tmp/taplo.gz | sha256sum --check"
-                " --strict -\n"
-                "gunzip /tmp/taplo.gz\n"
-                "sudo install -m 0755 /tmp/taplo "
-                "/usr/local/bin/taplo\n"
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/tamasfe/taplo/releases/download/"
+                f"{TAPLO_VERSION}/taplo-linux-x86_64.gz \\\n"
+                f"  --sha256 {TAPLO_LINUX_X64_GZIP_SHA256} \\\n"
+                "  --tool taplo --kind gzip\n"
                 "taplo --version\n"
                 f"{PROJEN_RUN} {TaskName.TOML_LINT}"
             ),
@@ -876,7 +961,7 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                 "permissions": {"pull_requests": GitHubPermission.WRITE},
                 "steps": {
                     JobStepName.CODE_REVIEW: {
-                        "env": PR_COMMENT_ENV,
+                        "env": REVIEW_TRIGGER_ENV,
                         "run": CODE_REVIEW_TRIGGER,
                     },
                 },
@@ -898,16 +983,13 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                             ' = "true" ]; then\n'
                             "  git fetch --unshallow\n"
                             "fi\n"
-                            "curl -fsSL -o /tmp/gitleaks.tar.gz "
-                            "https://github.com/gitleaks/gitleaks/releases/"
+                            f"{INSTALL_TOOL} \\\n"
+                            "  --url https://github.com/gitleaks/gitleaks/releases/"
                             "download/"
                             f"v{GITLEAKS_VERSION}/"
-                            f"gitleaks_{GITLEAKS_VERSION}_linux_x64.tar.gz\n"
-                            f"printf '%s  %s\\n' {GITLEAKS_LINUX_X64_TARBALL_SHA256}"
-                            " /tmp/gitleaks.tar.gz | sha256sum --check --strict -\n"
-                            "tar -xzf /tmp/gitleaks.tar.gz -C /tmp\n"
-                            "sudo install -m 0755 /tmp/gitleaks /usr/local/bin"
-                            "/gitleaks\n"
+                            f"gitleaks_{GITLEAKS_VERSION}_linux_x64.tar.gz \\\n"
+                            f"  --sha256 {GITLEAKS_LINUX_X64_TARBALL_SHA256} \\\n"
+                            "  --tool gitleaks --kind tar\n"
                             "gitleaks version\n"
                             f"{PROJEN_RUN} {TaskName.SECURITY_SECRET_SCAN}"
                         ),
@@ -915,14 +997,13 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                     JobStepName.SAST_SCAN: {
                         "background": True,
                         "run": (
-                            "curl -fsSL -o /tmp/opengrep "
-                            "https://github.com/opengrep/opengrep/releases/"
+                            f"{INSTALL_TOOL} \\\n"
+                            "  --url https://github.com/opengrep/opengrep/releases/"
                             "download/"
-                            f"v{OPENGREP_VERSION}/opengrep_manylinux_x86\n"
-                            f"printf '%s  %s\\n' {OPENGREP_MANYLINUX_X86_SHA256}"
-                            " /tmp/opengrep | sha256sum --check --strict -\n"
-                            "sudo install -m 0755 /tmp/opengrep "
-                            "/usr/local/bin/opengrep\n"
+                            f"v{OPENGREP_VERSION}/"
+                            "opengrep_manylinux_x86 \\\n"
+                            f"  --sha256 {OPENGREP_MANYLINUX_X86_SHA256} \\\n"
+                            "  --tool opengrep --kind raw\n"
                             "opengrep --version\n"
                             f"{PROJEN_RUN} {TaskName.SECURITY_SAST}"
                         ),
@@ -930,16 +1011,13 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                     JobStepName.MISCONFIG_SCAN: {
                         "background": True,
                         "run": (
-                            "curl -fsSL -o /tmp/trivy.tar.gz "
-                            "https://github.com/aquasecurity/trivy/releases/"
+                            f"{INSTALL_TOOL} \\\n"
+                            "  --url https://github.com/aquasecurity/trivy/releases/"
                             "download/"
                             f"v{TRIVY_VERSION}/"
-                            f"trivy_{TRIVY_VERSION}_Linux-64bit.tar.gz\n"
-                            f"printf '%s  %s\\n' {TRIVY_LINUX_64BIT_TARBALL_SHA256}"
-                            " /tmp/trivy.tar.gz | sha256sum --check --strict -\n"
-                            "tar -xzf /tmp/trivy.tar.gz -C /tmp trivy\n"
-                            "sudo install -m 0755 /tmp/trivy /usr/local/bin"
-                            "/trivy\n"
+                            f"trivy_{TRIVY_VERSION}_Linux-64bit.tar.gz \\\n"
+                            f"  --sha256 {TRIVY_LINUX_64BIT_TARBALL_SHA256} \\\n"
+                            "  --tool trivy --kind tar\n"
                             "trivy --version\n"
                             f"{PROJEN_RUN} {TaskName.SECURITY_MISCONFIG_SCAN}"
                         ),
@@ -959,16 +1037,13 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                     JobStepName.GITHUB_ACTIONS_SCAN: {
                         "background": True,
                         "run": (
-                            "curl -fsSL -o /tmp/zizmor.tar.gz "
-                            "https://github.com/zizmorcore/zizmor/releases/"
+                            f"{INSTALL_TOOL} \\\n"
+                            "  --url https://github.com/zizmorcore/zizmor/releases/"
                             "download/"
                             f"v{ZIZMOR_VERSION}/"
-                            "zizmor-x86_64-unknown-linux-gnu.tar.gz\n"
-                            f"printf '%s  %s\\n' {ZIZMOR_LINUX_X64_TARBALL_SHA256}"
-                            " /tmp/zizmor.tar.gz | sha256sum --check --strict -\n"
-                            "tar -xzf /tmp/zizmor.tar.gz -C /tmp\n"
-                            "sudo install -m 0755 /tmp/zizmor /usr/local/bin"
-                            "/zizmor\n"
+                            "zizmor-x86_64-unknown-linux-gnu.tar.gz \\\n"
+                            f"  --sha256 {ZIZMOR_LINUX_X64_TARBALL_SHA256} \\\n"
+                            "  --tool zizmor --kind tar\n"
                             "zizmor --version\n"
                             f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_SCAN}"
                         ),
@@ -976,14 +1051,13 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                     JobStepName.SCA_MULTI_LANGUAGE: {
                         "background": True,
                         "run": (
-                            "curl -fsSL -o /tmp/osv-scanner "
-                            "https://github.com/google/osv-scanner/releases/"
+                            f"{INSTALL_TOOL} \\\n"
+                            "  --url https://github.com/google/osv-scanner/releases/"
                             "download/"
-                            f"v{OSV_SCANNER_VERSION}/osv-scanner_linux_amd64\n"
-                            f"printf '%s  %s\\n' {OSV_SCANNER_LINUX_AMD64_SHA256}"
-                            " /tmp/osv-scanner | sha256sum --check --strict -\n"
-                            "sudo install -m 0755 /tmp/osv-scanner "
-                            "/usr/local/bin/osv-scanner\n"
+                            f"v{OSV_SCANNER_VERSION}/"
+                            "osv-scanner_linux_amd64 \\\n"
+                            f"  --sha256 {OSV_SCANNER_LINUX_AMD64_SHA256} \\\n"
+                            "  --tool osv-scanner --kind raw\n"
                             "osv-scanner --version\n"
                             f"{PROJEN_RUN} {TaskName.SECURITY_SCA_MULTI_LANGUAGE}"
                         ),
@@ -991,14 +1065,13 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                     JobStepName.DOCKERFILE_SCAN: {
                         "background": True,
                         "run": (
-                            "curl -fsSL -o /tmp/hadolint "
-                            "https://github.com/hadolint/hadolint/releases/"
+                            f"{INSTALL_TOOL} \\\n"
+                            "  --url https://github.com/hadolint/hadolint/releases/"
                             "download/"
-                            f"v{HADOLINT_VERSION}/hadolint-linux-x86_64\n"
-                            f"printf '%s  %s\\n' {HADOLINT_LINUX_X86_64_SHA256}"
-                            " /tmp/hadolint | sha256sum --check --strict -\n"
-                            "sudo install -m 0755 /tmp/hadolint "
-                            "/usr/local/bin/hadolint\n"
+                            f"v{HADOLINT_VERSION}/"
+                            "hadolint-linux-x86_64 \\\n"
+                            f"  --sha256 {HADOLINT_LINUX_X86_64_SHA256} \\\n"
+                            "  --tool hadolint --kind raw\n"
                             "hadolint --version\n"
                             f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
                         ),

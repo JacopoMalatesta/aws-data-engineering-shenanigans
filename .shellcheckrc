@@ -1,0 +1,4 @@
+# shellcheck configuration, rendered by projen from this list — edit here, then re-run npx projen.
+shell=bash
+severity=style
+enable=all

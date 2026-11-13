@@ -5,7 +5,7 @@ holds no configuration values.
 """
 
 from enum import StrEnum
-from typing import NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 type JsonValue = str | int | bool | list[JsonValue] | dict[str, JsonValue] | None
 
@@ -17,18 +17,32 @@ class FileType(StrEnum):
     TOML = "TOML"
     YAML = "YAML"
     OTHER = "OTHER"
+    TEXT = "TEXT"
 
 
-class FileSpec(TypedDict):
-    """Specification for a projen-managed file.
+class StructuredFileSpec(TypedDict):
+    """Specification for a projen-managed file serialized from a mapping.
 
-    ``PROJECT_FILES`` keys are the ``file_path``; ``file_type`` selects
-    the projen file class and ``obj`` is the serialized document.
+    ``file_type`` selects the projen file class via ``FILE_CLASSES``
+    and ``obj`` is the serialized document.
     """
 
-    file_type: FileType
+    file_type: Literal[FileType.JSON, FileType.TOML, FileType.YAML, FileType.OTHER]
     obj: dict[str, JsonValue]
     marker: NotRequired[bool]
+
+
+class TextFileSpec(TypedDict):
+    """Specification for a projen-managed file rendered verbatim.
+
+    ``lines`` render one per line through projen's ``TextFile``.
+    """
+
+    file_type: Literal[FileType.TEXT]
+    lines: list[str]
+
+
+type FileSpec = StructuredFileSpec | TextFileSpec
 
 
 class ProjectSpec(TypedDict):
@@ -52,8 +66,10 @@ class TaskName(StrEnum):
     Values are the task names; members are scope labels (``PYTHON_*``
     Python-source quality gates, ``CDK_*`` ``cdk`` CLI wrappers,
     ``SECURITY_*`` repo and lockfile scans; standalone ``YAML_LINT`` and
-    ``GITHUB_ACTIONS_LINT`` are correctness lint gates owned by the
-    ``check`` job, not security scanners). ``CDK_DEPLOY``, ``CDK_DIFF``,
+    ``TOML_LINT``, plus the ``SHELL_LINT``/``SHELL_FORMAT_CHECK`` pair
+    grouped under the ``SHELL_CHECK`` umbrella, are correctness lint
+    gates owned by the ``check`` job, not security scanners).
+    ``CDK_DEPLOY``, ``CDK_DIFF``,
     ``CDK_SYNTH_SILENT``, ``TEST`` and ``PACKAGE`` are projen built-ins;
     ``CDK_SYNTH`` is a projen built-in whose behavior ``PROJEN_TASKS``
     overrides for strict synthesis; the rest are declared in
@@ -82,6 +98,9 @@ class TaskName(StrEnum):
     SECURITY_SECRET_SCAN = "security:secret-scan"  # ruff: ignore[hardcoded-password-string]
     YAML_LINT = "yaml-lint"
     TOML_LINT = "toml-lint"
+    SHELL_LINT = "shell-lint"
+    SHELL_FORMAT_CHECK = "format:shell"
+    SHELL_CHECK = "check:shell"
     PYTHON_STATIC_ANALYSIS = "static-analysis"
     CDK_SYNTH = "synth"
     CDK_SYNTH_SILENT = "synth:silent"
@@ -112,7 +131,8 @@ class PreCommitHookSpec(TypedDict):
     every installed stage); ``additional_dependencies`` seeds
     pre-commit-managed environments such as ``language: node``;
     ``language_version`` selects that environment's runtime (``system``
-    shares the PATH node, avoiding nodeenv downloads).
+    shares the PATH node, avoiding nodeenv downloads); ``types`` narrows
+    the hook to files pre-commit tags with that type (e.g. ``shell``).
     """
 
     id: str
@@ -121,6 +141,7 @@ class PreCommitHookSpec(TypedDict):
     args: list[str]
     language: str
     types_or: NotRequired[list[str]]
+    types: NotRequired[list[str]]
     pass_filenames: NotRequired[bool]
     files: NotRequired[str]
     stages: NotRequired[list[str]]
@@ -206,6 +227,8 @@ class JobStepName(StrEnum):
     SCA_MULTI_LANGUAGE = "SCA multi-language"
     SCA_PYTHON = "SCA Python"
     SECRET_SCAN = "Secret scan"  # ruff: ignore[hardcoded-password-string] - YAML step label, not a credential
+    SHELL_FORMAT_CHECK = "Shell format check"
+    SHELL_LINT = "Shell lint"
     TOML_LINT = "TOML lint"
     WAIT_FOR_SCANS = "Wait for scans"
     YAML_LINT = "YAML lint"

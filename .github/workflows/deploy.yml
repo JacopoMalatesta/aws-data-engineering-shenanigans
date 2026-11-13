@@ -47,22 +47,40 @@ jobs:
         run: |-
           uvx --isolated yamllint@1.38.0 --version
           npx projen@0.104.17 yaml-lint
+      - name: Shell lint
+        id: shell_lint
+        run: |-
+          bash scripts/install-tool.sh \
+            --url https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz \
+            --sha256 b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6 \
+            --tool shellcheck --kind tar
+          shellcheck --version
+          npx projen@0.104.17 shell-lint
+      - name: Shell format check
+        id: shell_format_check
+        run: |-
+          bash scripts/install-tool.sh \
+            --url https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64 \
+            --sha256 76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf \
+            --tool shfmt --kind raw
+          shfmt --version
+          npx projen@0.104.17 format:shell
       - name: GitHub Actions lint
         id: github_actions_lint
         run: |-
-          curl -fsSL -o /tmp/actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
-          printf '%s  %s\n' 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 /tmp/actionlint.tar.gz | sha256sum --check --strict -
-          tar -xzf /tmp/actionlint.tar.gz -C /tmp
-          sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
+          bash scripts/install-tool.sh \
+            --url https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
+            --sha256 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 \
+            --tool actionlint --kind tar
           actionlint --version
           npx projen@0.104.17 github-actions-lint
       - name: TOML lint
         id: toml_lint
         run: |-
-          curl -fsSL -o /tmp/taplo.gz https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-linux-x86_64.gz
-          printf '%s  %s\n' 8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156 /tmp/taplo.gz | sha256sum --check --strict -
-          gunzip /tmp/taplo.gz
-          sudo install -m 0755 /tmp/taplo /usr/local/bin/taplo
+          bash scripts/install-tool.sh \
+            --url https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-linux-x86_64.gz \
+            --sha256 8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156 \
+            --tool taplo --kind gzip
           taplo --version
           npx projen@0.104.17 toml-lint
       - name: Python lint

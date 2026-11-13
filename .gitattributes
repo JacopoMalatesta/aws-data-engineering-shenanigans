@@ -4,6 +4,7 @@
 /.checkov.yaml linguist-generated
 /.coderabbit.yaml linguist-generated
 /.commitlintrc.yaml linguist-generated
+/.editorconfig linguist-generated
 /.gitattributes linguist-generated
 /.github/actionlint.yaml linguist-generated
 /.github/dependabot.yml linguist-generated
@@ -21,6 +22,7 @@
 /.projen/deps.json linguist-generated
 /.projen/files.json linguist-generated
 /.projen/tasks.json linguist-generated
+/.shellcheckrc linguist-generated
 /.vscode/extensions.json linguist-generated linguist-language=JSON-with-Comments
 /.vscode/settings.json linguist-generated
 /.yamllint.yaml linguist-generated
