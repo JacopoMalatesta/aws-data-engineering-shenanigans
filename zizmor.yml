@@ -10,3 +10,4 @@ rules:
   dangerous-triggers:
     ignore:
       - pull-request-lint.yml
+      - pr-reviewer.yml

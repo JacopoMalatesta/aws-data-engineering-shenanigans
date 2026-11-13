@@ -23,7 +23,57 @@ DIFF_BODY_FILE=cdk-diff-comment.md
     echo '✅ No infrastructure changes.'
   fi
 } > "$DIFF_BODY_FILE"
-gh pr comment "$PR_NUMBER" --edit-last --create-if-none --body-file "$DIFF_BODY_FILE"
+# Edit only the marked cdk-diff comment (--edit-last would rewrite the
+# reviewer's trigger comment); post fresh if none found.
+# Search every comment page (--paginate applies the filter per page, so the
+# last-id pick happens in bash across the flattened stream).
+COMMENT_ID="$(gh api --paginate "repos/$GH_REPO/issues/$PR_NUMBER/comments?per_page=100" --jq '
+  .[]
+  | select(
+    .user.login == "github-actions[bot]"
+    and (.body | contains("<!-- cdk-diff -->"))
+  )
+  | .id' | tail -n1)"
+if [ -n "$COMMENT_ID" ]; then
+  gh api -X PATCH "repos/$GH_REPO/issues/comments/$COMMENT_ID" -F body=@"$DIFF_BODY_FILE" > /dev/null
+else
+  gh api -X POST "repos/$GH_REPO/issues/$PR_NUMBER/comments" -F body=@"$DIFF_BODY_FILE" > /dev/null
+fi
+"""
+
+CODE_RABBIT_IGNORE_TITLE_KEYWORDS: Final = ["WIP", "[skip review]", "DO NOT REVIEW"]
+CODE_RABBIT_IGNORED_USERNAMES: Final = ["dependabot[bot]"]
+_QUOTED_KEYWORDS: Final = " ".join(
+    f'"{keyword}"' for keyword in CODE_RABBIT_IGNORE_TITLE_KEYWORDS
+)
+_BOT_LOGIN_CONDITION: Final = " || ".join(
+    f'[ "$login" = "{username}" ]' for username in CODE_RABBIT_IGNORED_USERNAMES
+)
+
+# Trigger script for the PR reviewer workflow: reads the event payload
+# from GITHUB_EVENT_PATH, applies the skip rules below, then comments
+# "@coderabbitai review" (fresh comment per event — editing wouldn't re-trigger).
+CODE_REVIEW_TRIGGER: Final = f"""\
+action="$(jq -r '.action' "$GITHUB_EVENT_PATH")"
+draft="$(jq -r '.pull_request.draft' "$GITHUB_EVENT_PATH")"
+login="$(jq -r '.pull_request.user.login' "$GITHUB_EVENT_PATH")"
+title="$(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")"
+title_change="$(jq -r '.changes.title // empty' "$GITHUB_EVENT_PATH")"
+if [ "$action" = "edited" ] && [ -z "$title_change" ]; then
+  echo "Skipping review trigger: edit did not change the title."
+  exit 0
+fi
+if [ "$draft" = "true" ] || {_BOT_LOGIN_CONDITION}; then
+  echo "Skipping review trigger: draft PR or ignored bot author."
+  exit 0
+fi
+for keyword in {_QUOTED_KEYWORDS}; do
+  if printf '%s' "$title" | grep -qiF -- "$keyword"; then
+    echo "Skipping review trigger: PR title contains '$keyword'."
+    exit 0
+  fi
+done
+gh pr comment "$PR_NUMBER" --body "@coderabbitai review"
 """
 
 GITLEAKS_VERSION: Final = "8.30.1"

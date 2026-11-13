@@ -2,6 +2,7 @@
 
 * text=auto eol=lf
 /.checkov.yaml linguist-generated
+/.coderabbit.yaml linguist-generated
 /.commitlintrc.yaml linguist-generated
 /.gitattributes linguist-generated
 /.github/actionlint.yaml linguist-generated
@@ -9,6 +10,7 @@
 /.github/workflows/build.yml linguist-generated
 /.github/workflows/commitlint.yml linguist-generated
 /.github/workflows/deploy.yml linguist-generated
+/.github/workflows/pr-reviewer.yml linguist-generated
 /.github/workflows/pull-request-lint.yml linguist-generated
 /.github/workflows/security.yml linguist-generated
 /.gitignore linguist-generated
