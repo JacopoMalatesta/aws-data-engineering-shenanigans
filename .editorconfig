@@ -1,0 +1,6 @@
+# EditorConfig style, rendered by projen from this list — edit here, then re-run npx projen.
+root = true
+
+[*.sh]
+indent_style = space
+indent_size = 2

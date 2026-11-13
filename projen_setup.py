@@ -7,7 +7,7 @@ private by convention because the only caller is that entry shim.
 
 from typing import TYPE_CHECKING, Final, cast
 
-from projen import JsonFile, ObjectFile, Task, TomlFile, YamlFile
+from projen import JsonFile, ObjectFile, Task, TextFile, TomlFile, YamlFile
 from projen.awscdk import AwsCdkPythonApp
 from projen.github import (
     GitHubOptions,
@@ -138,11 +138,27 @@ def _configure_pyproject(project: AwsCdkPythonApp) -> None:
 
 
 def _add_project_files(project: AwsCdkPythonApp) -> None:
-    """Append git ignore patterns and render the projen-managed files."""
+    """Append git ignore patterns and render the projen-managed files.
+
+    Structured specs render through their matching file class; text
+    specs render line-by-line through ``TextFile``, which no structured
+    class can serialize.
+    """
     for ignore_pattern in GIT_IGNORE_PATTERNS:
         project.add_git_ignore(ignore_pattern)
 
     for file_path, file_spec in PROJECT_FILES.items():
+        if file_spec["file_type"] == FileType.TEXT:
+            _ = TextFile(
+                scope=project,
+                file_path=file_path,
+                lines=[*file_spec["lines"]],
+                # TextFile renders exactly the given lines (it never
+                # prepends a marker), so marker=False only records that no
+                # marker exists.
+                marker=False,
+            )
+            continue
         _ = FILE_CLASSES[file_spec["file_type"]](
             scope=project,
             file_path=file_path,

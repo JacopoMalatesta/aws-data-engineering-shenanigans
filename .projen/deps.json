@@ -31,6 +31,16 @@
       "type": "devenv"
     },
     {
+      "name": "shellcheck-py",
+      "version": "0.11.0.1",
+      "type": "devenv"
+    },
+    {
+      "name": "shfmt-py",
+      "version": "4.2.0",
+      "type": "devenv"
+    },
+    {
       "name": "ty",
       "version": "0.0.92",
       "type": "devenv"

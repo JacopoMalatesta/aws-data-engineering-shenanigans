@@ -31,7 +31,7 @@
     },
     "check": {
       "name": "check",
-      "description": "Run all static checks: lint, format check, type check",
+      "description": "Run all Python static checks: lint, format, types, dependencies",
       "steps": [
         {
           "spawn": "lint"
@@ -47,6 +47,18 @@
         },
         {
           "spawn": "dependency-lint"
+        }
+      ]
+    },
+    "check:shell": {
+      "name": "check:shell",
+      "description": "Run all shell checks: lint and format verification",
+      "steps": [
+        {
+          "spawn": "shell-lint"
+        },
+        {
+          "spawn": "format:shell"
         }
       ]
     },
@@ -185,6 +197,15 @@
       "steps": [
         {
           "exec": "ruff format --check ."
+        }
+      ]
+    },
+    "format:shell": {
+      "name": "format:shell",
+      "description": "Verify shell formatting with shfmt (.editorconfig style)",
+      "steps": [
+        {
+          "exec": "shfmt --diff scripts"
         }
       ]
     },
@@ -401,6 +422,15 @@
       "steps": [
         {
           "exec": "gitleaks detect --no-banner --config .gitleaks.toml"
+        }
+      ]
+    },
+    "shell-lint": {
+      "name": "shell-lint",
+      "description": "Lint shell scripts with shellcheck (.shellcheckrc config)",
+      "steps": [
+        {
+          "exec": "shellcheck scripts/*.sh"
         }
       ]
     },
