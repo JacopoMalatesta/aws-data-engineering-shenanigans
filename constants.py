@@ -12,6 +12,8 @@ PYTHON_VERSION: Final = "3.13"
 NODE_VERSION: Final = "24"
 PROJEN_RUN: Final = "npx projen@0.104.17"
 INSTALL_TOOL: Final = "bash scripts/install-tool.sh"
+SARIF_OUTPUT_DIR: Final = "tmp/sarif"
+EVERY_MONDAY_AT_SIX_AM_UTC: Final = "0 6 * * 1"
 UTF_8: Final = "utf-8"
 
 # The scripts/ files are the hand-edited sources of truth; the generated
@@ -87,6 +89,9 @@ SETUP_UV_V10_PIN: Final = "astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba4
 SETUP_NODE_V7_PIN: Final = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
 AWS_CREDENTIALS_V6_PIN: Final = (
     "aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd"
+)
+UPLOAD_SARIF_V4_PIN: Final = (
+    "github/codeql-action/upload-sarif@f3bbb05694c2f74569081c28664c0866d64dec21"
 )
 
 # flake8-plugin ruleset codes for the ruff ignore list.
