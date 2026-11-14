@@ -63,12 +63,13 @@ class ProjectSpec(TypedDict):
 class TaskName(StrEnum):
     """Name of a projen task used by this repo's tooling.
 
-    Values are the task names; members are scope labels (``PYTHON_*``
+    Values are the task names; members are scope labels (``CHECK`` the
+    root umbrella spawning every repo gate, ``PYTHON_CHECK`` and
+    ``SHELL_CHECK`` language-slice umbrellas, ``PYTHON_*``
     Python-source quality gates, ``CDK_*`` ``cdk`` CLI wrappers,
-    ``SECURITY_*`` repo and lockfile scans; standalone ``YAML_LINT`` and
-    ``TOML_LINT``, plus the ``SHELL_LINT``/``SHELL_FORMAT_CHECK`` pair
-    grouped under the ``SHELL_CHECK`` umbrella, are correctness lint
-    gates owned by the ``check`` job, not security scanners).
+    ``SECURITY_*`` repo and lockfile scans; standalone ``YAML_LINT``,
+    ``TOML_LINT`` and ``GITHUB_ACTIONS_LINT`` are correctness lint gates
+    owned by the ``check`` job, not security scanners).
     ``CDK_DEPLOY``, ``CDK_DIFF``,
     ``CDK_SYNTH_SILENT``, ``TEST`` and ``PACKAGE`` are projen built-ins;
     ``CDK_SYNTH`` is a projen built-in whose behavior ``PROJEN_TASKS``
@@ -79,7 +80,8 @@ class TaskName(StrEnum):
 
     CDK_DEPLOY = "deploy"
     CDK_DIFF = "diff"
-    PYTHON_CHECK = "check"
+    CHECK = "check"
+    PYTHON_CHECK = "check:python"
     PYTHON_FORMAT = "format"
     PYTHON_FORMAT_CHECK = "format:check"
     PYTHON_LINT = "lint"
