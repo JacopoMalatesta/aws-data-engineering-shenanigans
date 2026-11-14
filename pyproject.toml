@@ -19,14 +19,14 @@ dependencies = [
 dev = [
   "basedpyright==1.40.2",
   "deptry==0.25.1",
-  "pre-commit==4.6.2",
-  "projen==0.104.17",
+  "pre-commit==4.7.0",
+  "projen==0.104.27",
   "pytest-cov==7.1.0",
-  "ruff==0.17.2",
+  "ruff==0.17.4",
   "shellcheck-py==0.11.0.1",
   "shfmt-py==4.2.0",
-  "ty==0.0.92",
-  "pytest==9.0.3"
+  "ty==0.0.99",
+  "pytest==9.2.0"
 ]
 
 [tool.setuptools.packages.find]
