@@ -358,7 +358,7 @@
     },
     "security": {
       "name": "security",
-      "description": "Run all security scanners: dependency audit, secret history, source patterns, config misconfigurations, IaC policy",
+      "description": "Run all security scanners: dependency audit, secret history, source patterns, config misconfigurations, IaC policy (SARIF reports under tmp/sarif/ for code-scanning upload)",
       "steps": [
         {
           "spawn": "security:sca-python"
@@ -397,10 +397,10 @@
     },
     "security:git-hub-actions-scan": {
       "name": "security:git-hub-actions-scan",
-      "description": "Static analysis of GitHub Actions workflows",
+      "description": "Static analysis of GitHub Actions workflows (SARIF report first, then the plain-format run that gates CI)",
       "steps": [
         {
-          "exec": "zizmor ."
+          "exec": "mkdir -p tmp/sarif && zizmor --format sarif . > tmp/sarif/zizmor.sarif || rm -f tmp/sarif/zizmor.sarif; zizmor ."
         }
       ]
     },
@@ -409,34 +409,34 @@
       "description": "IaC policy scan of the synthesized CloudFormation template (cdk.out)",
       "steps": [
         {
-          "exec": "uvx --isolated checkov@3.4.0 --config-file .checkov.yaml --show-config"
+          "exec": "mkdir -p tmp/sarif && uvx --isolated checkov@3.4.0 --config-file .checkov.yaml -o cli -o sarif --output-file-path console,tmp/sarif/checkov.sarif"
         }
       ]
     },
     "security:misconfig-scan": {
       "name": "security:misconfig-scan",
-      "description": "Misconfiguration scan of the workspace (Dockerfile etc.)",
+      "description": "Misconfiguration scan of the workspace (Dockerfile etc., SARIF report)",
       "steps": [
         {
-          "exec": "trivy fs --config trivy.yaml --exit-code 1 ."
+          "exec": "mkdir -p tmp/sarif && trivy fs --config trivy.yaml --exit-code 1 --format sarif --output tmp/sarif/trivy.sarif ."
         }
       ]
     },
     "security:sast": {
       "name": "security:sast",
-      "description": "Static pattern scan of tracked sources (three rulesets)",
+      "description": "Static pattern scan of tracked sources (three rulesets, SARIF report)",
       "steps": [
         {
-          "exec": "opengrep scan --verbose --config p/security-audit --config p/owasp-top-ten --config p/python ."
+          "exec": "mkdir -p tmp/sarif && opengrep scan --verbose --config p/security-audit --config p/owasp-top-ten --config p/python --sarif --output tmp/sarif/opengrep.sarif ."
         }
       ]
     },
     "security:sca-multi-language": {
       "name": "security:sca-multi-language",
-      "description": "Scan dependencies for known vulnerabilities (OSV)",
+      "description": "Scan dependencies for known vulnerabilities (OSV, SARIF report)",
       "steps": [
         {
-          "exec": "osv-scanner scan source --recursive ."
+          "exec": "mkdir -p tmp/sarif && osv-scanner scan source --recursive . --format sarif > tmp/sarif/osv.sarif"
         }
       ]
     },
@@ -451,10 +451,10 @@
     },
     "security:secret-scan": {
       "name": "security:secret-scan",
-      "description": "Scan the full git history for leaked credentials",
+      "description": "Scan the full git history for leaked credentials (redacted console output, SARIF report)",
       "steps": [
         {
-          "exec": "gitleaks detect --no-banner --config .gitleaks.toml"
+          "exec": "mkdir -p tmp/sarif && gitleaks detect --no-banner --config .gitleaks.toml --redact --report-format sarif --report-path tmp/sarif/gitleaks.sarif"
         }
       ]
     },

@@ -193,7 +193,10 @@ class JobStepName(StrEnum):
     ``CHECKOUT_FULL_HISTORY`` pin the official checkout action at
     default vs full fetch depth, ``INSTALL_NODE``/``INSTALL_UV`` use
     official ``setup-*`` actions; other ``INSTALL_*`` steps are shell
-    installs (``uses:`` vs ``run:`` in each spec).
+    installs (``uses:`` vs ``run:`` in each spec). ``UPLOAD_*`` steps
+    push the scan tasks' SARIF reports to code scanning, ``if_``-guarded
+    so pull-request runs (which gate via the scan job itself) skip the
+    upload.
     """
 
     AWS_CREDENTIALS = "AWS credentials via OIDC"
@@ -232,6 +235,7 @@ class JobStepName(StrEnum):
     SHELL_FORMAT_CHECK = "Shell format check"
     SHELL_LINT = "Shell lint"
     TOML_LINT = "TOML lint"
+    UPLOAD_SECURITY_SARIF = "Upload security SARIF"
     WAIT_FOR_SCANS = "Wait for scans"
     YAML_LINT = "YAML lint"
 
@@ -310,6 +314,7 @@ class WorkflowTriggers(TypedDict):
     pull_request: NotRequired[dict[str, JsonValue]]
     pull_request_target: NotRequired[dict[str, JsonValue]]
     push: NotRequired[dict[str, JsonValue]]
+    schedule: NotRequired[list[dict[str, JsonValue]]]
     workflow_dispatch: NotRequired[dict[str, JsonValue]]
 
 
