@@ -168,6 +168,9 @@ RUFF_PER_FILE_IGNORES: Final[dict[str, list[str]]] = {
 }
 
 PYPROJECT_TOOL_SECTIONS: Final = {
+    "setuptools": {
+        "packages": {"find": {"include": ["aws_data_engineering_shenanigans*"]}},
+    },
     "ruff": {
         "target-version": f"py{PYTHON_VERSION.replace('.', '')}",
         "line-length": 88,
@@ -351,6 +354,24 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             TaskName.SECURITY_GITHUB_ACTIONS_SCAN,
             TaskName.SECURITY_SCA_MULTI_LANGUAGE,
             TaskName.SECURITY_DOCKERFILE_LINT,
+        ],
+    },
+    TaskName.CHECK: {
+        "description": (
+            "Run every repo gate: Python, shell, YAML, TOML and Actions "
+            "lint, strict synthesis, unit tests, packaging and all "
+            "security scans"
+        ),
+        "spawns": [
+            TaskName.PYTHON_CHECK,
+            TaskName.SHELL_CHECK,
+            TaskName.YAML_LINT,
+            TaskName.TOML_LINT,
+            TaskName.GITHUB_ACTIONS_LINT,
+            TaskName.CDK_SYNTH,
+            TaskName.TEST,
+            TaskName.PACKAGE,
+            TaskName.SECURITY,
         ],
     },
 }

@@ -31,6 +31,39 @@
     },
     "check": {
       "name": "check",
+      "description": "Run every repo gate: Python, shell, YAML, TOML and Actions lint, strict synthesis, unit tests, packaging and all security scans",
+      "steps": [
+        {
+          "spawn": "check:python"
+        },
+        {
+          "spawn": "check:shell"
+        },
+        {
+          "spawn": "yaml-lint"
+        },
+        {
+          "spawn": "toml-lint"
+        },
+        {
+          "spawn": "github-actions-lint"
+        },
+        {
+          "spawn": "synth"
+        },
+        {
+          "spawn": "test"
+        },
+        {
+          "spawn": "package"
+        },
+        {
+          "spawn": "security"
+        }
+      ]
+    },
+    "check:python": {
+      "name": "check:python",
       "description": "Run all Python static checks: lint, format, types, dependencies",
       "steps": [
         {
