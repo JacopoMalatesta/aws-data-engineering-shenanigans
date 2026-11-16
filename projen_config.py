@@ -548,6 +548,13 @@ EDITORCONFIG_LINES: Final = [
     "",
 ]
 
+# rhysd/actionlint#693: parallel-step keys ("background", "wait-all")
+# are unrecognized by actionlint v1.7.12.
+ACTIONLINT_PARALLEL_STEP_IGNORES: Final = [
+    'unexpected key "background"',
+    'step must run script with "run" section or run action with "uses" section',
+]
+
 PROJECT_FILES: Final[dict[str, FileSpec]] = {
     ".pre-commit-config.yaml": {
         "file_type": FileType.YAML,
@@ -612,19 +619,15 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
             }
         },
     },
-    # rhysd/actionlint#693: parallel-step keys ("background", "wait-all")
-    # are unrecognized by actionlint v1.7.12; the run/uses error is the
-    # derived "wait-all" finding. Scope both to the scan job and drop
-    # this entry once #694 ships.
     ".github/actionlint.yaml": {
         "file_type": FileType.YAML,
         "obj": {
             "paths": {
                 ".github/workflows/security.yml": {
-                    "ignore": [
-                        'unexpected key "background"',
-                        'step must run script with "run" section or run action with "uses" section',
-                    ],
+                    "ignore": cast("list[JsonValue]", ACTIONLINT_PARALLEL_STEP_IGNORES),
+                },
+                ".github/workflows/deploy.yml": {
+                    "ignore": cast("list[JsonValue]", ACTIONLINT_PARALLEL_STEP_IGNORES),
                 },
             },
         },
@@ -869,6 +872,115 @@ CHECK_JOB: Final[GitHubJobSpec] = {
     },
 }
 
+SCAN_JOB: Final[GitHubJobSpec] = {
+    "runs_on": CI_RUNNERS,
+    "permissions": {"contents": GitHubPermission.READ},
+    "steps": {
+        **_SETUP_CDK,
+        JobStepName.SECRET_SCAN: {
+            "background": True,
+            "run": (
+                'if [ "$(git rev-parse --is-shallow-repository)"'
+                ' = "true" ]; then\n'
+                "  git fetch --unshallow\n"
+                "fi\n"
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/gitleaks/gitleaks/releases/"
+                "download/"
+                f"v{GITLEAKS_VERSION}/"
+                f"gitleaks_{GITLEAKS_VERSION}_linux_x64.tar.gz \\\n"
+                f"  --sha256 {GITLEAKS_LINUX_X64_TARBALL_SHA256} \\\n"
+                "  --tool gitleaks --kind tar\n"
+                "gitleaks version\n"
+                f"{PROJEN_RUN} {TaskName.SECURITY_SECRET_SCAN}"
+            ),
+        },
+        JobStepName.SAST_SCAN: {
+            "background": True,
+            "run": (
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/opengrep/opengrep/releases/"
+                "download/"
+                f"v{OPENGREP_VERSION}/"
+                "opengrep_manylinux_x86 \\\n"
+                f"  --sha256 {OPENGREP_MANYLINUX_X86_SHA256} \\\n"
+                "  --tool opengrep --kind raw\n"
+                "opengrep --version\n"
+                f"{PROJEN_RUN} {TaskName.SECURITY_SAST}"
+            ),
+        },
+        JobStepName.MISCONFIG_SCAN: {
+            "background": True,
+            "run": (
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/aquasecurity/trivy/releases/"
+                "download/"
+                f"v{TRIVY_VERSION}/"
+                f"trivy_{TRIVY_VERSION}_Linux-64bit.tar.gz \\\n"
+                f"  --sha256 {TRIVY_LINUX_64BIT_TARBALL_SHA256} \\\n"
+                "  --tool trivy --kind tar\n"
+                "trivy --version\n"
+                f"{PROJEN_RUN} {TaskName.SECURITY_MISCONFIG_SCAN}"
+            ),
+        },
+        JobStepName.SCA_PYTHON: {
+            "background": True,
+            "run": f"{PROJEN_RUN} {TaskName.SECURITY_SCA_PYTHON}",
+        },
+        JobStepName.IAC_SCAN: {
+            "background": True,
+            "run": (
+                f"{PROJEN_RUN} {TaskName.CDK_SYNTH_SILENT}\n"
+                f"uvx --isolated checkov@{CHECKOV_VERSION} --version\n"
+                f"{PROJEN_RUN} {TaskName.SECURITY_IAC_SCAN}"
+            ),
+        },
+        JobStepName.GITHUB_ACTIONS_SCAN: {
+            "background": True,
+            "run": (
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/zizmorcore/zizmor/releases/"
+                "download/"
+                f"v{ZIZMOR_VERSION}/"
+                "zizmor-x86_64-unknown-linux-gnu.tar.gz \\\n"
+                f"  --sha256 {ZIZMOR_LINUX_X64_TARBALL_SHA256} \\\n"
+                "  --tool zizmor --kind tar\n"
+                "zizmor --version\n"
+                f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_SCAN}"
+            ),
+        },
+        JobStepName.SCA_MULTI_LANGUAGE: {
+            "background": True,
+            "run": (
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/google/osv-scanner/releases/"
+                "download/"
+                f"v{OSV_SCANNER_VERSION}/"
+                "osv-scanner_linux_amd64 \\\n"
+                f"  --sha256 {OSV_SCANNER_LINUX_AMD64_SHA256} \\\n"
+                "  --tool osv-scanner --kind raw\n"
+                "osv-scanner --version\n"
+                f"{PROJEN_RUN} {TaskName.SECURITY_SCA_MULTI_LANGUAGE}"
+            ),
+        },
+        JobStepName.DOCKERFILE_SCAN: {
+            "background": True,
+            "run": (
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/hadolint/hadolint/releases/"
+                "download/"
+                f"v{HADOLINT_VERSION}/"
+                "hadolint-linux-x86_64 \\\n"
+                f"  --sha256 {HADOLINT_LINUX_X86_64_SHA256} \\\n"
+                "  --tool hadolint --kind raw\n"
+                "hadolint --version\n"
+                f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
+            ),
+        },
+        JobStepName.WAIT_FOR_SCANS: {"wait_all": True},
+    },
+}
+
 GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
     WorkflowName.BUILD: {
         "on": {"pull_request": {}},
@@ -938,9 +1050,10 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
         "limit_concurrency": True,
         "jobs": {
             JobName.CHECK: CHECK_JOB,
+            JobName.SCAN: SCAN_JOB,
             JobName.DEPLOY: {
                 "runs_on": CI_RUNNERS,
-                "needs": [JobName.CHECK],
+                "needs": [JobName.CHECK, JobName.SCAN],
                 "matrix": DEPLOYMENT_ENVIRONMENTS,
                 "max_parallel": 1,
                 "fail_fast": True,
@@ -992,114 +1105,7 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
     WorkflowName.SECURITY: {
         "on": {"pull_request": {}, "workflow_dispatch": {}},
         "jobs": {
-            JobName.SCAN: {
-                "runs_on": CI_RUNNERS,
-                "permissions": {"contents": GitHubPermission.READ},
-                "steps": {
-                    **_SETUP_CDK,
-                    JobStepName.SECRET_SCAN: {
-                        "background": True,
-                        "run": (
-                            'if [ "$(git rev-parse --is-shallow-repository)"'
-                            ' = "true" ]; then\n'
-                            "  git fetch --unshallow\n"
-                            "fi\n"
-                            f"{INSTALL_TOOL} \\\n"
-                            "  --url https://github.com/gitleaks/gitleaks/releases/"
-                            "download/"
-                            f"v{GITLEAKS_VERSION}/"
-                            f"gitleaks_{GITLEAKS_VERSION}_linux_x64.tar.gz \\\n"
-                            f"  --sha256 {GITLEAKS_LINUX_X64_TARBALL_SHA256} \\\n"
-                            "  --tool gitleaks --kind tar\n"
-                            "gitleaks version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_SECRET_SCAN}"
-                        ),
-                    },
-                    JobStepName.SAST_SCAN: {
-                        "background": True,
-                        "run": (
-                            f"{INSTALL_TOOL} \\\n"
-                            "  --url https://github.com/opengrep/opengrep/releases/"
-                            "download/"
-                            f"v{OPENGREP_VERSION}/"
-                            "opengrep_manylinux_x86 \\\n"
-                            f"  --sha256 {OPENGREP_MANYLINUX_X86_SHA256} \\\n"
-                            "  --tool opengrep --kind raw\n"
-                            "opengrep --version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_SAST}"
-                        ),
-                    },
-                    JobStepName.MISCONFIG_SCAN: {
-                        "background": True,
-                        "run": (
-                            f"{INSTALL_TOOL} \\\n"
-                            "  --url https://github.com/aquasecurity/trivy/releases/"
-                            "download/"
-                            f"v{TRIVY_VERSION}/"
-                            f"trivy_{TRIVY_VERSION}_Linux-64bit.tar.gz \\\n"
-                            f"  --sha256 {TRIVY_LINUX_64BIT_TARBALL_SHA256} \\\n"
-                            "  --tool trivy --kind tar\n"
-                            "trivy --version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_MISCONFIG_SCAN}"
-                        ),
-                    },
-                    JobStepName.SCA_PYTHON: {
-                        "background": True,
-                        "run": f"{PROJEN_RUN} {TaskName.SECURITY_SCA_PYTHON}",
-                    },
-                    JobStepName.IAC_SCAN: {
-                        "background": True,
-                        "run": (
-                            f"{PROJEN_RUN} {TaskName.CDK_SYNTH_SILENT}\n"
-                            f"uvx --isolated checkov@{CHECKOV_VERSION} --version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_IAC_SCAN}"
-                        ),
-                    },
-                    JobStepName.GITHUB_ACTIONS_SCAN: {
-                        "background": True,
-                        "run": (
-                            f"{INSTALL_TOOL} \\\n"
-                            "  --url https://github.com/zizmorcore/zizmor/releases/"
-                            "download/"
-                            f"v{ZIZMOR_VERSION}/"
-                            "zizmor-x86_64-unknown-linux-gnu.tar.gz \\\n"
-                            f"  --sha256 {ZIZMOR_LINUX_X64_TARBALL_SHA256} \\\n"
-                            "  --tool zizmor --kind tar\n"
-                            "zizmor --version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_GITHUB_ACTIONS_SCAN}"
-                        ),
-                    },
-                    JobStepName.SCA_MULTI_LANGUAGE: {
-                        "background": True,
-                        "run": (
-                            f"{INSTALL_TOOL} \\\n"
-                            "  --url https://github.com/google/osv-scanner/releases/"
-                            "download/"
-                            f"v{OSV_SCANNER_VERSION}/"
-                            "osv-scanner_linux_amd64 \\\n"
-                            f"  --sha256 {OSV_SCANNER_LINUX_AMD64_SHA256} \\\n"
-                            "  --tool osv-scanner --kind raw\n"
-                            "osv-scanner --version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_SCA_MULTI_LANGUAGE}"
-                        ),
-                    },
-                    JobStepName.DOCKERFILE_SCAN: {
-                        "background": True,
-                        "run": (
-                            f"{INSTALL_TOOL} \\\n"
-                            "  --url https://github.com/hadolint/hadolint/releases/"
-                            "download/"
-                            f"v{HADOLINT_VERSION}/"
-                            "hadolint-linux-x86_64 \\\n"
-                            f"  --sha256 {HADOLINT_LINUX_X86_64_SHA256} \\\n"
-                            "  --tool hadolint --kind raw\n"
-                            "hadolint --version\n"
-                            f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
-                        ),
-                    },
-                    JobStepName.WAIT_FOR_SCANS: {"wait_all": True},
-                },
-            },
+            JobName.SCAN: SCAN_JOB,
         },
     },
 }

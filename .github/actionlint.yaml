@@ -5,3 +5,7 @@ paths:
     ignore:
       - unexpected key "background"
       - step must run script with "run" section or run action with "uses" section
+  .github/workflows/deploy.yml:
+    ignore:
+      - unexpected key "background"
+      - step must run script with "run" section or run action with "uses" section
