@@ -305,16 +305,16 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
         "description": "Lint GitHub Actions workflows with actionlint",
         "exec": "actionlint",
     },
-    TaskName.SECURITY_SCA_MULTI_LANGUAGE: {
-        "description": "Scan dependencies for known vulnerabilities (OSV)",
-        "exec": "osv-scanner scan source --recursive .",
-    },
-    TaskName.SECURITY_DOCKERFILE_LINT: {
+    TaskName.DOCKERFILE_LINT: {
         "description": "Lint Dockerfiles with Hadolint",
         "exec": (
             "find . -name 'Dockerfile*' -not -path './.venv/*' "
             "-not -path '*/node_modules/*' -exec hadolint {} +"
         ),
+    },
+    TaskName.SECURITY_SCA_MULTI_LANGUAGE: {
+        "description": "Scan dependencies for known vulnerabilities (OSV)",
+        "exec": "osv-scanner scan source --recursive .",
     },
     # PyPI-only tool: uvx (isolated) instead of the curl/sha256 binary pattern.
     TaskName.YAML_LINT: {
@@ -353,14 +353,13 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             TaskName.SECURITY_IAC_SCAN,
             TaskName.SECURITY_GITHUB_ACTIONS_SCAN,
             TaskName.SECURITY_SCA_MULTI_LANGUAGE,
-            TaskName.SECURITY_DOCKERFILE_LINT,
         ],
     },
     TaskName.CHECK: {
         "description": (
-            "Run every repo gate: Python, shell, YAML, TOML and Actions "
-            "lint, strict synthesis, unit tests, packaging and all "
-            "security scans"
+            "Run every repo gate: Python, shell, YAML, TOML, Actions and "
+            "Dockerfile lint, strict synthesis, unit tests, packaging and "
+            "all security scans"
         ),
         "spawns": [
             TaskName.PYTHON_CHECK,
@@ -368,6 +367,7 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
             TaskName.YAML_LINT,
             TaskName.TOML_LINT,
             TaskName.GITHUB_ACTIONS_LINT,
+            TaskName.DOCKERFILE_LINT,
             TaskName.CDK_SYNTH,
             TaskName.TEST,
             TaskName.PACKAGE,
@@ -850,6 +850,19 @@ CHECK_JOB: Final[GitHubJobSpec] = {
                 f"{PROJEN_RUN} {TaskName.TOML_LINT}"
             ),
         },
+        JobStepName.DOCKERFILE_LINT: {
+            "run": (
+                f"{INSTALL_TOOL} \\\n"
+                "  --url https://github.com/hadolint/hadolint/releases/"
+                "download/"
+                f"v{HADOLINT_VERSION}/"
+                "hadolint-linux-x86_64 \\\n"
+                f"  --sha256 {HADOLINT_LINUX_X86_64_SHA256} \\\n"
+                "  --tool hadolint --kind raw\n"
+                "hadolint --version\n"
+                f"{PROJEN_RUN} {TaskName.DOCKERFILE_LINT}"
+            ),
+        },
         JobStepName.PYTHON_LINT: {
             "run": f"{PROJEN_RUN} {TaskName.PYTHON_LINT}",
         },
@@ -961,20 +974,6 @@ SCAN_JOB: Final[GitHubJobSpec] = {
                 "  --tool osv-scanner --kind raw\n"
                 "osv-scanner --version\n"
                 f"{PROJEN_RUN} {TaskName.SECURITY_SCA_MULTI_LANGUAGE}"
-            ),
-        },
-        JobStepName.DOCKERFILE_SCAN: {
-            "background": True,
-            "run": (
-                f"{INSTALL_TOOL} \\\n"
-                "  --url https://github.com/hadolint/hadolint/releases/"
-                "download/"
-                f"v{HADOLINT_VERSION}/"
-                "hadolint-linux-x86_64 \\\n"
-                f"  --sha256 {HADOLINT_LINUX_X86_64_SHA256} \\\n"
-                "  --tool hadolint --kind raw\n"
-                "hadolint --version\n"
-                f"{PROJEN_RUN} {TaskName.SECURITY_DOCKERFILE_LINT}"
             ),
         },
         JobStepName.WAIT_FOR_SCANS: {"wait_all": True},

@@ -68,8 +68,9 @@ class TaskName(StrEnum):
     ``SHELL_CHECK`` language-slice umbrellas, ``PYTHON_*``
     Python-source quality gates, ``CDK_*`` ``cdk`` CLI wrappers,
     ``SECURITY_*`` repo and lockfile scans; standalone ``YAML_LINT``,
-    ``TOML_LINT`` and ``GITHUB_ACTIONS_LINT`` are correctness lint gates
-    owned by the ``check`` job, not security scanners).
+    ``TOML_LINT``, ``GITHUB_ACTIONS_LINT`` and ``DOCKERFILE_LINT`` are
+    correctness lint gates owned by the ``check`` job, not security
+    scanners).
     ``CDK_DEPLOY``, ``CDK_DIFF``,
     ``CDK_SYNTH_SILENT``, ``TEST`` and ``PACKAGE`` are projen built-ins;
     ``CDK_SYNTH`` is a projen built-in whose behavior ``PROJEN_TASKS``
@@ -89,8 +90,8 @@ class TaskName(StrEnum):
     PYTHON_DEPENDENCY_LINT = "dependency-lint"
     PACKAGE = "package"
     SECURITY = "security"
-    SECURITY_DOCKERFILE_LINT = "security:dockerfile-lint"
     GITHUB_ACTIONS_LINT = "github-actions-lint"
+    DOCKERFILE_LINT = "dockerfile-lint"
     SECURITY_GITHUB_ACTIONS_SCAN = "security:git-hub-actions-scan"
     SECURITY_IAC_SCAN = "security:iac-scan"
     SECURITY_MISCONFIG_SCAN = "security:misconfig-scan"
@@ -205,7 +206,7 @@ class JobStepName(StrEnum):
     CHECKOUT_FULL_HISTORY = "Checkout repository (full history)"
     CODE_REVIEW = "Trigger code review"
     COMMIT_LINT = "Commit message lint"
-    DOCKERFILE_SCAN = "Dockerfile scan"
+    DOCKERFILE_LINT = "Dockerfile lint"
     GITHUB_ACTIONS_LINT = "GitHub Actions lint"
     GITHUB_ACTIONS_SCAN = "GitHub Actions scan"
     IAC_SCAN = "IaC scan"
