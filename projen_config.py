@@ -287,7 +287,7 @@ PROJEN_TASKS: Final[dict[TaskName, ProjenTaskSpec]] = {
     },
     TaskName.SECURITY_SECRET_SCAN: {
         "description": "Scan the full git history for leaked credentials",
-        "exec": "gitleaks detect --no-banner --config .gitleaks.toml",
+        "exec": "gitleaks detect --no-banner --config .gitleaks.toml --redact",
     },
     TaskName.SECURITY_MISCONFIG_SCAN: {
         "description": "Misconfiguration scan of the workspace (Dockerfile etc.)",

@@ -454,7 +454,7 @@
       "description": "Scan the full git history for leaked credentials",
       "steps": [
         {
-          "exec": "gitleaks detect --no-banner --config .gitleaks.toml"
+          "exec": "gitleaks detect --no-banner --config .gitleaks.toml --redact"
         }
       ]
     },
