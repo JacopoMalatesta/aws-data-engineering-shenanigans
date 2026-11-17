@@ -31,7 +31,7 @@
     },
     "check": {
       "name": "check",
-      "description": "Run every repo gate: Python, shell, YAML, TOML and Actions lint, strict synthesis, unit tests, packaging and all security scans",
+      "description": "Run every repo gate: Python, shell, YAML, TOML, Actions and Dockerfile lint, strict synthesis, unit tests, packaging and all security scans",
       "steps": [
         {
           "spawn": "check:python"
@@ -47,6 +47,9 @@
         },
         {
           "spawn": "github-actions-lint"
+        },
+        {
+          "spawn": "dockerfile-lint"
         },
         {
           "spawn": "synth"
@@ -200,6 +203,15 @@
             "cdk",
             "diff"
           ]
+        }
+      ]
+    },
+    "dockerfile-lint": {
+      "name": "dockerfile-lint",
+      "description": "Lint Dockerfiles with Hadolint",
+      "steps": [
+        {
+          "exec": "find . -name 'Dockerfile*' -not -path './.venv/*' -not -path '*/node_modules/*' -exec hadolint {} +"
         }
       ]
     },
@@ -380,18 +392,6 @@
         },
         {
           "spawn": "security:sca-multi-language"
-        },
-        {
-          "spawn": "security:dockerfile-lint"
-        }
-      ]
-    },
-    "security:dockerfile-lint": {
-      "name": "security:dockerfile-lint",
-      "description": "Lint Dockerfiles with Hadolint",
-      "steps": [
-        {
-          "exec": "find . -name 'Dockerfile*' -not -path './.venv/*' -not -path '*/node_modules/*' -exec hadolint {} +"
         }
       ]
     },

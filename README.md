@@ -75,16 +75,17 @@ commitlint's built-in ignores.
 
 ## Security checks
 
-Eight scanners run in parallel (as background steps) in the `scan` job of
+Seven scanners run in parallel (as background steps) in the `scan` job of
 the `security` workflow on every pull request, and locally via the
 `security` task (each scanner has its own `security:<name>` task). All
-tool versions are pinned in `projen_config.py`; CI downloads the six
+tool versions are pinned in `projen_config.py`; CI downloads the five
 standalone binaries digest-pinned from their GitHub releases, so a
 silently repointed release URL cannot swap a binary. The `uv audit` run
 goes through the pinned uv itself, which reuses the lockfile.
 
-`yamllint`, `github-actions-lint` (`actionlint`) and `toml-lint`
-(`taplo`) are correctness checks, not scanners, so they are not part of
+`yamllint`, `github-actions-lint` (`actionlint`), `toml-lint`
+(`taplo`) and `dockerfile-lint` (`hadolint`) are correctness checks,
+not scanners, so they are not part of
 `security`. The shared `check` job runs them right after `Regeneration
 drift check`, validating the YAML and TOML projen would commit
 (workflow files, `dependabot.yml`, `.pre-commit-config.yaml`, the
@@ -101,7 +102,6 @@ and `deploy.yml`. The `toml-lint` file selection lives in
 | `iac-scan`           | `checkov`            | synthesized CF template (`cdk.out/`) | `.checkov.yaml` | `security:iac-scan` |
 | `github-actions-scan` | `zizmor`            | `.github/workflows` | `zizmor.yml`     | `security:git-hub-actions-scan` |
 | `sca-multi-language` | `osv-scanner`        | manifests and lockfiles | `osv-scanner.toml` | `security:sca-multi-language` |
-| `dockerfile-lint`    | `hadolint`           | Dockerfiles         | `.hadolint.yaml` | `security:dockerfile-lint`     |
 
 All scans fail closed: a finding fails the job. Consciously accepted
 findings are silenced in the scanner's policy file (currently empty — none
@@ -151,8 +151,8 @@ Local prerequisites: `gitleaks`, `opengrep`, `trivy`, `zizmor`,
 `actionlint`, `taplo`, `osv-scanner` and `hadolint` (standalone binaries) plus
 `checkov` (via `uvx`) must be on `PATH` to run their tasks (pin the versions used
 by CI - see the install steps in `.github/workflows/security.yml` and,
-for `actionlint` and `taplo`, in the shared `check` job of `build.yml`
-and `deploy.yml`). The `uv` version used by your
+for `actionlint`, `taplo` and `hadolint`, in the shared `check` job of
+`build.yml` and `deploy.yml`). The `uv` version used by your
 shell only has to satisfy `uv audit`; the `checkov` task also needs the
 CDK CLI to synthesize `cdk.out/`.
 Manual one-time changes are now minimal; both were applied via the GitHub
