@@ -10,7 +10,7 @@ from typing import Final
 
 PYTHON_VERSION: Final = "3.13"
 NODE_VERSION: Final = "24"
-PROJEN_RUN: Final = "npx projen@0.104.17"
+PROJEN_RUN: Final = "uv run --frozen projen"
 INSTALL_TOOL: Final = "bash scripts/install-tool.sh"
 UTF_8: Final = "utf-8"
 
@@ -40,6 +40,7 @@ OPENGREP_MANYLINUX_X86_SHA256: Final = (
 )
 CHECKOV_VERSION: Final = "3.4.0"
 CDK_NAG_VERSION: Final = "3.0.2"
+AWS_CDK_CLI_VERSION: Final = "2.1146.1"
 
 COMMITLINT_CLI_VERSION: Final = "21.2.4"
 COMMITLINT_CONFIG_CONVENTIONAL_VERSION: Final = "21.2.4"

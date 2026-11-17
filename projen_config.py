@@ -12,6 +12,7 @@ from constants import (
     ACTIONLINT_LINUX_AMD64_TARBALL_SHA256,
     ACTIONLINT_VERSION,
     AIRFLOW_RUFF_RULESET,
+    AWS_CDK_CLI_VERSION,
     AWS_CREDENTIALS_V6_PIN,
     CHECKOUT_V7_PIN,
     CHECKOV_VERSION,
@@ -62,6 +63,7 @@ from constants import (
     ZIZMOR_VERSION,
 )
 from projen_types import (
+    DependabotUpdateSpec,
     DeploymentEnvironment,
     EnvironmentName,
     FileSpec,
@@ -121,8 +123,10 @@ DEV_DEPS: Final = [
 ]
 
 
+PROJECT_NAME: Final = "aws-data-engineering-shenanigans"
+
 PROJECT_SPEC: Final[ProjectSpec] = {
-    "name": "aws-data-engineering-shenanigans",
+    "name": PROJECT_NAME,
     "module_name": "aws_data_engineering_shenanigans",
     "author_name": "JacopoMalatesta",
     "author_email": "jacopomalatesta95@gmail.com",
@@ -555,6 +559,32 @@ ACTIONLINT_PARALLEL_STEP_IGNORES: Final = [
     'step must run script with "run" section or run action with "uses" section',
 ]
 
+DEPENDABOT_UPDATE_DEFAULTS: Final[DependabotUpdateSpec] = {
+    "directory": "/",
+    "schedule": {"interval": "weekly"},
+    "cooldown": {"default-days": 7},
+    "open-pull-requests-limit": 5,
+    "commit-message": {"prefix": "chore(deps)", "include": "scope"},
+}
+
+DEPENDABOT_UPDATES: Final[list[DependabotUpdateSpec]] = [
+    {
+        "package-ecosystem": "github-actions",
+        **DEPENDABOT_UPDATE_DEFAULTS,
+        "groups": {"actions": {"patterns": ["*"]}},
+    },
+    {
+        "package-ecosystem": "npm",
+        **DEPENDABOT_UPDATE_DEFAULTS,
+        "groups": {"npm": {"patterns": ["*"]}},
+    },
+    {
+        "package-ecosystem": "uv",
+        **DEPENDABOT_UPDATE_DEFAULTS,
+        "groups": {"python": {"patterns": ["*"]}},
+    },
+]
+
 PROJECT_FILES: Final[dict[str, FileSpec]] = {
     ".pre-commit-config.yaml": {
         "file_type": FileType.YAML,
@@ -583,6 +613,26 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
             },
         },
     },
+    # Dev-only npm tools for CI (cdk CLI, commitlint); installed in
+    # workflows via npm ci against the committed package-lock.json, which
+    # is npm-owned and never rendered here — regenerate it with
+    # "npm install --package-lock-only" whenever these pins change.
+    "package.json": {
+        "file_type": FileType.JSON,
+        "marker": False,
+        "obj": {
+            "name": PROJECT_NAME,
+            "private": True,
+            "version": PROJECT_SPEC["version"],
+            "devDependencies": {
+                "aws-cdk": AWS_CDK_CLI_VERSION,
+                "@commitlint/cli": COMMITLINT_CLI_VERSION,
+                "@commitlint/config-conventional": (
+                    COMMITLINT_CONFIG_CONVENTIONAL_VERSION
+                ),
+            },
+        },
+    },
     "trivy.yaml": {
         "file_type": FileType.YAML,
         "obj": {
@@ -596,7 +646,7 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
     ".gitleaks.toml": {
         "file_type": FileType.TOML,
         "obj": {
-            "title": "aws-data-engineering-shenanigans gitleaks policy",
+            "title": f"{PROJECT_NAME} gitleaks policy",
             "extend": {"useDefault": True},
         },
     },
@@ -604,14 +654,6 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
         "file_type": FileType.YAML,
         "obj": {
             "rules": {
-                "adhoc-packages": {
-                    "ignore": [
-                        "build.yml",
-                        "commitlint.yml",
-                        "deploy.yml",
-                        "security.yml",
-                    ]
-                },
                 # Both jobs are payload-only (no PR checkout/execution).
                 "dangerous-triggers": {
                     "ignore": ["pull-request-lint.yml", "pr-reviewer.yml"]
@@ -702,26 +744,7 @@ PROJECT_FILES: Final[dict[str, FileSpec]] = {
         "file_type": FileType.YAML,
         "obj": {
             "version": 2,
-            "updates": [
-                {
-                    "package-ecosystem": "github-actions",
-                    "directory": "/",
-                    "schedule": {"interval": "weekly"},
-                    "cooldown": {"default-days": 7},
-                    "groups": {"actions": {"patterns": ["*"]}},
-                    "open-pull-requests-limit": 5,
-                    "commit-message": {"prefix": "chore(deps)", "include": "scope"},
-                },
-                {
-                    "package-ecosystem": "uv",
-                    "directory": "/",
-                    "schedule": {"interval": "weekly"},
-                    "cooldown": {"default-days": 7},
-                    "groups": {"python": {"patterns": ["*"]}},
-                    "open-pull-requests-limit": 5,
-                    "commit-message": {"prefix": "chore(deps)", "include": "scope"},
-                },
-            ],
+            "updates": cast("list[JsonValue]", DEPENDABOT_UPDATES),
         },
     },
     ".shellcheckrc": {"file_type": FileType.TEXT, "lines": SHELLCHECK_RC_LINES},
@@ -752,6 +775,13 @@ INSTALL_NODE_STEP: Final[GitHubJobStepSpec] = {
     "uses": SETUP_NODE_V7_PIN,
     "with_": {"node-version": NODE_VERSION},
 }
+# npm ci installs exactly the versions and integrity hashes committed in
+# package-lock.json — zizmor adhoc-packages' own remediation. Appending
+# node_modules/.bin to GITHUB_PATH persists across steps, so projen tasks
+# keep resolving cdk without touching task definitions.
+INSTALL_NODE_DEPENDENCIES_STEP: Final[GitHubJobStepSpec] = {
+    "run": ('npm ci\necho "$PWD/node_modules/.bin" >> "$GITHUB_PATH"'),
+}
 PR_COMMENT_ENV: Final = {
     "GH_REPO": "${{ github.repository }}",
     "GH_TOKEN": "${{ github.token }}",
@@ -775,13 +805,14 @@ _SETUP: Final[dict[JobStepName, GitHubJobStepSpec]] = {
         "uses": SETUP_UV_V10_PIN,
         "with_": {"python-version": PYTHON_VERSION},
     },
+    # Kept in every job, even where no npm step runs: pip-installed projen
+    # drives its CLI through the jsii Node runtime.
     JobStepName.INSTALL_NODE: INSTALL_NODE_STEP,
     JobStepName.INSTALL_PYTHON_DEPENDENCIES: {"run": "uv sync --frozen"},
-    JobStepName.INSTALL_PROJEN_CLI: {"run": "npm install -g projen@0.104.17"},
 }
 _SETUP_CDK: Final[dict[JobStepName, GitHubJobStepSpec]] = {
     **_SETUP,
-    JobStepName.INSTALL_CDK_CLI: {"run": "npm install -g aws-cdk@2.1146.1"},
+    JobStepName.INSTALL_NODE_DEPENDENCIES: INSTALL_NODE_DEPENDENCIES_STEP,
 }
 
 # The check job gates both the build and deploy workflows, so it is
@@ -1028,11 +1059,11 @@ GITHUB_WORKFLOWS: Final[dict[WorkflowName, GitHubWorkflowSpec]] = {
                         },
                     },
                     JobStepName.INSTALL_NODE: INSTALL_NODE_STEP,
+                    JobStepName.INSTALL_NODE_DEPENDENCIES: (
+                        INSTALL_NODE_DEPENDENCIES_STEP
+                    ),
                     JobStepName.COMMIT_LINT: {
                         "run": (
-                            "npm install --no-save --no-package-lock "
-                            f"{COMMITLINT_NPM_PACKAGES[0]} "
-                            f"{COMMITLINT_NPM_PACKAGES[1]}\n"
                             "npx --no-install commitlint --version\n"
                             "npx --no-install commitlint --from="
                             "${{ github.event.pull_request.base.sha }} "
