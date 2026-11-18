@@ -89,6 +89,7 @@ cython_debug/
 tmp/
 !/.pre-commit-config.yaml
 !/.commitlintrc.yaml
+!/package.json
 !/trivy.yaml
 !/.gitleaks.toml
 !/zizmor.yml

@@ -28,6 +28,7 @@
 /.yamllint.yaml linguist-generated
 /cdk.json linguist-generated
 /osv-scanner.toml linguist-generated
+/package.json linguist-generated
 /pyproject.toml linguist-generated
 /taplo.toml linguist-generated
 /trivy.yaml linguist-generated

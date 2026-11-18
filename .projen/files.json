@@ -26,6 +26,7 @@
     ".yamllint.yaml",
     "cdk.json",
     "osv-scanner.toml",
+    "package.json",
     "pyproject.toml",
     "taplo.toml",
     "trivy.yaml",

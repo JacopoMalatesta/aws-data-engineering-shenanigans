@@ -27,12 +27,9 @@ jobs:
       - name: Install Python dependencies
         id: install_python_dependencies
         run: uv sync --frozen
-      - name: Install projen CLI
-        id: install_projen_cli
-        run: npm install -g projen@0.104.17
       - name: Regenerate projen files
         id: regenerate_projen_files
-        run: npx projen@0.104.17 --no-post --debug
+        run: uv run --frozen projen --no-post --debug
       - name: Regeneration drift check
         id: regeneration_drift_check
         run: git diff --exit-code
@@ -40,7 +37,7 @@ jobs:
         id: yaml_lint
         run: |-
           uvx --isolated yamllint@1.38.0 --version
-          npx projen@0.104.17 yaml-lint
+          uv run --frozen projen yaml-lint
       - name: Shell lint
         id: shell_lint
         run: |-
@@ -49,7 +46,7 @@ jobs:
             --sha256 b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6 \
             --tool shellcheck --kind tar
           shellcheck --version
-          npx projen@0.104.17 shell-lint
+          uv run --frozen projen shell-lint
       - name: Shell format check
         id: shell_format_check
         run: |-
@@ -58,7 +55,7 @@ jobs:
             --sha256 76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf \
             --tool shfmt --kind raw
           shfmt --version
-          npx projen@0.104.17 format:shell
+          uv run --frozen projen format:shell
       - name: GitHub Actions lint
         id: github_actions_lint
         run: |-
@@ -67,7 +64,7 @@ jobs:
             --sha256 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 \
             --tool actionlint --kind tar
           actionlint --version
-          npx projen@0.104.17 github-actions-lint
+          uv run --frozen projen github-actions-lint
       - name: TOML lint
         id: toml_lint
         run: |-
@@ -76,7 +73,7 @@ jobs:
             --sha256 8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156 \
             --tool taplo --kind gzip
           taplo --version
-          npx projen@0.104.17 toml-lint
+          uv run --frozen projen toml-lint
       - name: Dockerfile lint
         id: dockerfile_lint
         run: |-
@@ -85,28 +82,28 @@ jobs:
             --sha256 c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507 \
             --tool hadolint --kind raw
           hadolint --version
-          npx projen@0.104.17 dockerfile-lint
+          uv run --frozen projen dockerfile-lint
       - name: Python lint
         id: python_lint
-        run: npx projen@0.104.17 lint
+        run: uv run --frozen projen lint
       - name: Python format check
         id: python_format_check
-        run: npx projen@0.104.17 format:check
+        run: uv run --frozen projen format:check
       - name: Python typecheck
         id: python_typecheck
-        run: npx projen@0.104.17 typecheck
+        run: uv run --frozen projen typecheck
       - name: Python static analysis
         id: python_static_analysis
-        run: npx projen@0.104.17 static-analysis
+        run: uv run --frozen projen static-analysis
       - name: Python dependency lint
         id: python_dependency_lint
-        run: npx projen@0.104.17 dependency-lint
+        run: uv run --frozen projen dependency-lint
       - name: Python unit tests
         id: python_unit_tests
-        run: npx projen@0.104.17 test
+        run: uv run --frozen projen test
       - name: Package Python code
         id: package_python_code
-        run: npx projen@0.104.17 package
+        run: uv run --frozen projen package
   build:
     needs: check
     runs-on: ubuntu-latest
@@ -133,12 +130,11 @@ jobs:
       - name: Install Python dependencies
         id: install_python_dependencies
         run: uv sync --frozen
-      - name: Install projen CLI
-        id: install_projen_cli
-        run: npm install -g projen@0.104.17
-      - name: Install CDK CLI
-        id: install_cdk_cli
-        run: npm install -g aws-cdk@2.1146.1
+      - name: Install Node dependencies
+        id: install_node_dependencies
+        run: |-
+          npm ci
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
       - name: AWS credentials via OIDC
         id: aws_credentials_via_oidc
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd
@@ -147,10 +143,10 @@ jobs:
           aws-region: ${{ matrix.region_name }}
       - name: CDK synth
         id: cdk_synth
-        run: npx projen@0.104.17 synth
+        run: uv run --frozen projen synth
       - name: CDK diff capture
         id: cdk_diff_capture
-        run: npx projen@0.104.17 diff > cdk-diff.txt || true
+        run: uv run --frozen projen diff > cdk-diff.txt || true
       - name: Post CDK diff
         id: post_cdk_diff
         env:

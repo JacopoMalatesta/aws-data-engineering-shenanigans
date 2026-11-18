@@ -60,6 +60,42 @@ class ProjectSpec(TypedDict):
     pytest_version: str
 
 
+class DependabotSchedule(TypedDict):
+    """The ``schedule`` block of a Dependabot ecosystem entry."""
+
+    interval: str
+
+
+DependabotCooldown = TypedDict("DependabotCooldown", {"default-days": int})
+
+
+class DependabotGroup(TypedDict):
+    """One named group inside an entry's ``groups`` block."""
+
+    patterns: list[str]
+
+
+class DependabotCommitMessage(TypedDict):
+    """The ``commit-message`` block of a Dependabot ecosystem entry."""
+
+    prefix: str
+    include: str
+
+
+DependabotUpdateSpec = TypedDict(
+    "DependabotUpdateSpec",
+    {
+        "package-ecosystem": NotRequired[str],
+        "directory": str,
+        "schedule": DependabotSchedule,
+        "cooldown": DependabotCooldown,
+        "groups": NotRequired[dict[str, DependabotGroup]],
+        "open-pull-requests-limit": int,
+        "commit-message": DependabotCommitMessage,
+    },
+)
+
+
 class TaskName(StrEnum):
     """Name of a projen task used by this repo's tooling.
 
@@ -210,9 +246,8 @@ class JobStepName(StrEnum):
     GITHUB_ACTIONS_LINT = "GitHub Actions lint"
     GITHUB_ACTIONS_SCAN = "GitHub Actions scan"
     IAC_SCAN = "IaC scan"
-    INSTALL_CDK_CLI = "Install CDK CLI"
     INSTALL_NODE = "Install Node"
-    INSTALL_PROJEN_CLI = "Install projen CLI"
+    INSTALL_NODE_DEPENDENCIES = "Install Node dependencies"
     INSTALL_PYTHON_DEPENDENCIES = "Install Python dependencies"
     INSTALL_UV = "Install uv"
     MISCONFIG_SCAN = "Misconfig scan"

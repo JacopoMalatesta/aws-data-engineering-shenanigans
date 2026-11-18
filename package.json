@@ -1,0 +1,10 @@
+{
+  "name": "aws-data-engineering-shenanigans",
+  "private": true,
+  "version": "0.1.0",
+  "devDependencies": {
+    "aws-cdk": "2.1146.1",
+    "@commitlint/cli": "21.2.4",
+    "@commitlint/config-conventional": "21.2.4"
+  }
+}

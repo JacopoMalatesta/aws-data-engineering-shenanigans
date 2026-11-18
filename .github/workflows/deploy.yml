@@ -33,12 +33,9 @@ jobs:
       - name: Install Python dependencies
         id: install_python_dependencies
         run: uv sync --frozen
-      - name: Install projen CLI
-        id: install_projen_cli
-        run: npm install -g projen@0.104.17
       - name: Regenerate projen files
         id: regenerate_projen_files
-        run: npx projen@0.104.17 --no-post --debug
+        run: uv run --frozen projen --no-post --debug
       - name: Regeneration drift check
         id: regeneration_drift_check
         run: git diff --exit-code
@@ -46,7 +43,7 @@ jobs:
         id: yaml_lint
         run: |-
           uvx --isolated yamllint@1.38.0 --version
-          npx projen@0.104.17 yaml-lint
+          uv run --frozen projen yaml-lint
       - name: Shell lint
         id: shell_lint
         run: |-
@@ -55,7 +52,7 @@ jobs:
             --sha256 b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6 \
             --tool shellcheck --kind tar
           shellcheck --version
-          npx projen@0.104.17 shell-lint
+          uv run --frozen projen shell-lint
       - name: Shell format check
         id: shell_format_check
         run: |-
@@ -64,7 +61,7 @@ jobs:
             --sha256 76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf \
             --tool shfmt --kind raw
           shfmt --version
-          npx projen@0.104.17 format:shell
+          uv run --frozen projen format:shell
       - name: GitHub Actions lint
         id: github_actions_lint
         run: |-
@@ -73,7 +70,7 @@ jobs:
             --sha256 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 \
             --tool actionlint --kind tar
           actionlint --version
-          npx projen@0.104.17 github-actions-lint
+          uv run --frozen projen github-actions-lint
       - name: TOML lint
         id: toml_lint
         run: |-
@@ -82,7 +79,7 @@ jobs:
             --sha256 8fe196b894ccf9072f98d4e1013a180306e17d244830b03986ee5e8eabeb6156 \
             --tool taplo --kind gzip
           taplo --version
-          npx projen@0.104.17 toml-lint
+          uv run --frozen projen toml-lint
       - name: Dockerfile lint
         id: dockerfile_lint
         run: |-
@@ -91,28 +88,28 @@ jobs:
             --sha256 c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507 \
             --tool hadolint --kind raw
           hadolint --version
-          npx projen@0.104.17 dockerfile-lint
+          uv run --frozen projen dockerfile-lint
       - name: Python lint
         id: python_lint
-        run: npx projen@0.104.17 lint
+        run: uv run --frozen projen lint
       - name: Python format check
         id: python_format_check
-        run: npx projen@0.104.17 format:check
+        run: uv run --frozen projen format:check
       - name: Python typecheck
         id: python_typecheck
-        run: npx projen@0.104.17 typecheck
+        run: uv run --frozen projen typecheck
       - name: Python static analysis
         id: python_static_analysis
-        run: npx projen@0.104.17 static-analysis
+        run: uv run --frozen projen static-analysis
       - name: Python dependency lint
         id: python_dependency_lint
-        run: npx projen@0.104.17 dependency-lint
+        run: uv run --frozen projen dependency-lint
       - name: Python unit tests
         id: python_unit_tests
-        run: npx projen@0.104.17 test
+        run: uv run --frozen projen test
       - name: Package Python code
         id: package_python_code
-        run: npx projen@0.104.17 package
+        run: uv run --frozen projen package
   scan:
     runs-on: ubuntu-latest
     permissions:
@@ -136,12 +133,11 @@ jobs:
       - name: Install Python dependencies
         id: install_python_dependencies
         run: uv sync --frozen
-      - name: Install projen CLI
-        id: install_projen_cli
-        run: npm install -g projen@0.104.17
-      - name: Install CDK CLI
-        id: install_cdk_cli
-        run: npm install -g aws-cdk@2.1146.1
+      - name: Install Node dependencies
+        id: install_node_dependencies
+        run: |-
+          npm ci
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Secret scan
         id: secret_scan
         run: |-
@@ -153,7 +149,7 @@ jobs:
             --sha256 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb \
             --tool gitleaks --kind tar
           gitleaks version
-          npx projen@0.104.17 security:secret-scan
+          uv run --frozen projen security:secret-scan
         background: true
       - name: SAST scan
         id: sast_scan
@@ -163,7 +159,7 @@ jobs:
             --sha256 2545812755572e1355ea60f96288f82a26eebed7fc8b512430d49d5667214c24 \
             --tool opengrep --kind raw
           opengrep --version
-          npx projen@0.104.17 security:sast
+          uv run --frozen projen security:sast
         background: true
       - name: Misconfig scan
         id: misconfig_scan
@@ -173,18 +169,18 @@ jobs:
             --sha256 c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0 \
             --tool trivy --kind tar
           trivy --version
-          npx projen@0.104.17 security:misconfig-scan
+          uv run --frozen projen security:misconfig-scan
         background: true
       - name: SCA Python
         id: sca_python
-        run: npx projen@0.104.17 security:sca-python
+        run: uv run --frozen projen security:sca-python
         background: true
       - name: IaC scan
         id: iac_scan
         run: |-
-          npx projen@0.104.17 synth:silent
+          uv run --frozen projen synth:silent
           uvx --isolated checkov@3.4.0 --version
-          npx projen@0.104.17 security:iac-scan
+          uv run --frozen projen security:iac-scan
         background: true
       - name: GitHub Actions scan
         id: github_actions_scan
@@ -194,7 +190,7 @@ jobs:
             --sha256 d185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99 \
             --tool zizmor --kind tar
           zizmor --version
-          npx projen@0.104.17 security:git-hub-actions-scan
+          uv run --frozen projen security:git-hub-actions-scan
         background: true
       - name: SCA multi-language
         id: sca_multi-language
@@ -204,7 +200,7 @@ jobs:
             --sha256 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b \
             --tool osv-scanner --kind raw
           osv-scanner --version
-          npx projen@0.104.17 security:sca-multi-language
+          uv run --frozen projen security:sca-multi-language
         background: true
       - name: Wait for scans
         id: wait_for_scans
@@ -236,12 +232,11 @@ jobs:
       - name: Install Python dependencies
         id: install_python_dependencies
         run: uv sync --frozen
-      - name: Install projen CLI
-        id: install_projen_cli
-        run: npm install -g projen@0.104.17
-      - name: Install CDK CLI
-        id: install_cdk_cli
-        run: npm install -g aws-cdk@2.1146.1
+      - name: Install Node dependencies
+        id: install_node_dependencies
+        run: |-
+          npm ci
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
       - name: AWS credentials via OIDC
         id: aws_credentials_via_oidc
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd
@@ -250,10 +245,10 @@ jobs:
           aws-region: ${{ matrix.region_name }}
       - name: CDK diff
         id: cdk_diff
-        run: npx projen@0.104.17 diff
+        run: uv run --frozen projen diff
       - name: CDK deploy
         id: cdk_deploy
-        run: npx projen@0.104.17 deploy "*-${{ matrix.environment_name }}"
+        run: uv run --frozen projen deploy "*-${{ matrix.environment_name }}"
     strategy:
       max-parallel: 1
       fail-fast: true
